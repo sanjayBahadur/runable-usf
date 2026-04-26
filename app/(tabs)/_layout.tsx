@@ -1,9 +1,10 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
@@ -12,29 +13,45 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: RUNABLE_THEME.colors.campusGreen,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#CBD5E1' : RUNABLE_THEME.colors.mutedInk,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          height: Platform.OS === 'ios' ? 86 : 72,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          backgroundColor:
+            colorScheme === 'dark'
+              ? RUNABLE_THEME.colors.panelBlack
+              : RUNABLE_THEME.colors.paper,
+          borderTopWidth: 2,
+          borderTopColor: RUNABLE_THEME.colors.border,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '700',
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Map',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="feed"
         options={{
           title: 'Feed',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="paperplane.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Development Log',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="book.fill" color={color} />,
         }}
       />
     </Tabs>

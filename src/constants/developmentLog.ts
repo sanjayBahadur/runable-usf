@@ -95,4 +95,28 @@ export const DEVELOPMENT_LOG = [
       'Development Log now documents Modules 00 through 07',
     ],
   },
+  {
+    module: 'Module 13',
+    title: 'Campus Access & Viewport UX',
+    checklist: [
+      'USF Tampa viewport constants now distinguish map focus bounds from gameplay boundary',
+      'Campus access helpers derive on-campus, near-campus, off-campus, and unknown states',
+      'Map opens directly into a campus-focused initial region and can recenter to campus',
+      'Campus mode chips and preview banners communicate on-campus versus preview behavior',
+      'Preview mode still allows exploration and demo actions without blocking the whole app',
+      'Development Log now documents Modules 00 through 07 plus Module 13',
+    ],
+  },
+  {
+    module: 'Module 14',
+    title: 'Design System & App Shell',
+    checklist: [
+      'Shared theme tokens now define Runable colors, spacing, radii, shadows, and z-index',
+      'Reusable UI primitives now include XP windows, chips, glossy buttons, stat tiles, and a floating action dock',
+      'Map tab now uses a cleaner overlay shell with compact status, toast, sheet, and dock regions',
+      'Preview mode gates campus-only actions with an explicit campus access overlay instead of silent failure',
+      'Expo Router tab chrome now uses a more intentional Runable bottom navigation style',
+      'Development Log now documents the Module 14 app-shell pass',
+    ],
+  },
 ] as const;

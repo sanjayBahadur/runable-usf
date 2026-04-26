@@ -2,6 +2,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { PixelColorPicker } from '@/src/components/art/PixelColorPicker';
+import { PixelChip } from '@/src/components/ui';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 
 type PixelToolbarProps = {
   colors: string[];
@@ -20,14 +22,16 @@ export function PixelToolbar({
 }: PixelToolbarProps) {
   return (
     <View style={styles.container}>
-      <ThemedText type="defaultSemiBold">Pixel Paint</ThemedText>
+      <View style={styles.header}>
+        <ThemedText type="defaultSemiBold">Pixel Paint</ThemedText>
+        <PixelChip label={`${paintedCount} painted`} tone="blue" />
+      </View>
       <ThemedText>{currentGroupName} can paint owned cells only.</ThemedText>
       <PixelColorPicker
         colors={colors}
         selectedColor={selectedColor}
         onSelectColor={onSelectColor}
       />
-      <ThemedText>Painted cells visible: {paintedCount}</ThemedText>
     </View>
   );
 }
@@ -35,8 +39,11 @@ export function PixelToolbar({
 const styles = StyleSheet.create({
   container: {
     gap: 10,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: RUNABLE_THEME.spacing.sm,
   },
 });

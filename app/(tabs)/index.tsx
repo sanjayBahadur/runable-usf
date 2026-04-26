@@ -4,27 +4,49 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { CAMPUS_CONFIG, POINTS } from '@/src/constants';
+import {
+  CAMPUS_CONFIG,
+  USF_CAMPUS_NAME,
+  USF_BOARD_BOUNDARY,
+  USF_INITIAL_REGION,
+  USF_PREVIEW_REGION,
+} from '@/src/constants';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import { PixelToolbar } from '@/src/components/art';
+import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/components/campus';
 import { IssueCard, IssueForm } from '@/src/components/issues';
+import { AppShell, MapOverlayShell } from '@/src/components/layout';
 import { CampusMap } from '@/src/components/map';
+import { ActionDock, GlossyButton, RunableCard, StatTile, XPWindow } from '@/src/components/ui';
 import { runDemoTerritoryScenario } from '@/src/demo';
+import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
 import { usePixelArt } from '@/src/hooks/usePixelArt';
 import type { Coordinate } from '@/src/types';
 
 const demoScenario = runDemoTerritoryScenario();
+const onCampusLocation = CAMPUS_CONFIG.center;
+const previewLocation: Coordinate = [28.0575, -82.4358];
 const currentUserGroupId = 'group-bulls';
 const currentUserId = 'user-bulls-demo';
 const paintPalette = ['#F97316', '#0EA5E9', '#FACC15', '#F43F5E', '#22C55E', '#A855F7'];
 const demoRunPaths = demoScenario.runs.map((run) => run.path.map((point) => point.coordinate));
-const demoUserLocation = CAMPUS_CONFIG.center;
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
+  const [simulatedMode, setSimulatedMode] = useState<'campus' | 'preview'>('campus');
+  const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [draftIssueCoordinate, setDraftIssueCoordinate] = useState<Coordinate | null>(null);
+  const [paintModeActive, setPaintModeActive] = useState(false);
+  const [campusGateMessage, setCampusGateMessage] = useState<string | null>(null);
+
+  const simulatedUserLocation = simulatedMode === 'campus' ? onCampusLocation : previewLocation;
+  const accessState = getCampusAccessState(simulatedUserLocation);
+  const previewModeActive = accessState !== 'onCampus';
+  const initialRegion = previewModeActive ? USF_PREVIEW_REGION : USF_INITIAL_REGION;
   const currentGroupName =
     demoScenario.groups.find((group) => group.id === currentUserGroupId)?.name ?? currentUserGroupId;
+
   const { issues, reportIssue, markIssueFixed } = useIssueReports({
     initialIssues: demoScenario.issues,
     currentUserId,
@@ -35,28 +57,35 @@ export default function HomeScreen() {
     userId: currentUserId,
     ownership: demoScenario.ownership,
   });
-  const [selectedMessage, setSelectedMessage] = useState(
-    'Long press the map to report an issue, tap a red pin to fix it, or paint a Bulls-owned cell.',
-  );
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(issues[0]?.id ?? null);
-  const [draftIssueCoordinate, setDraftIssueCoordinate] = useState<Coordinate | null>(null);
 
   const selectedIssue = useMemo(
-    () => issues.find((entry) => entry.id === selectedIssueId) ?? issues[0] ?? null,
+    () => issues.find((entry) => entry.id === selectedIssueId) ?? null,
     [issues, selectedIssueId],
   );
 
   const openIssues = issues.filter((issue) => issue.status === 'open');
   const fixedIssues = issues.filter((issue) => issue.status === 'fixed');
-  const contestedOwnership = demoScenario.ownership.filter((cell) => cell.runnerUpGroupId);
-  const bullsOwnedCount = demoScenario.ownership.filter((cell) => cell.groupId === 'group-bulls').length;
-  const herdOwnedCount = demoScenario.ownership.filter((cell) => cell.groupId === 'group-herd').length;
 
   function showSelection(message: string) {
     setSelectedMessage(message);
   }
 
+  function requireCampusForAction(message: string): boolean {
+    if (!previewModeActive) {
+      return false;
+    }
+
+    setCampusGateMessage(message);
+    showSelection(message);
+    return true;
+  }
+
   function handleCellPress(cellId: string) {
+    if (!paintModeActive) {
+      showSelection(`Selected ${cellId}. Enable Paint to color owned cells.`);
+      return;
+    }
+
     const cellOwnership = demoScenario.ownership.find((cell) => cell.cellId === cellId);
     if (!cellOwnership) {
       return;
@@ -81,12 +110,23 @@ export default function HomeScreen() {
       return;
     }
 
+    setPaintModeActive(false);
     setDraftIssueCoordinate(null);
     setSelectedIssueId(issueId);
     showSelection(`Issue selected: ${issue.title} (${issue.status}, ${issue.category}).`);
   }
 
   function handleMapLongPress(coordinate: Coordinate) {
+    if (
+      requireCampusForAction(
+        'Issue reporting is campus-first. Preview mode still lets you inspect the board, pins, and demo territory.',
+      )
+    ) {
+      return;
+    }
+
+    setPaintModeActive(false);
+    setSelectedIssueId(null);
     setDraftIssueCoordinate(coordinate);
     showSelection(
       `Issue draft opened at ${coordinate[0].toFixed(4)}, ${coordinate[1].toFixed(4)}.`,
@@ -96,6 +136,7 @@ export default function HomeScreen() {
   function handleReportIssue(input: Parameters<typeof reportIssue>[0]) {
     const result = reportIssue(input);
     setDraftIssueCoordinate(null);
+    setPaintModeActive(false);
     setSelectedIssueId(result.issue.id);
     showSelection(
       `Reported "${result.issue.title}" for ${result.pointsAwarded} pts. Pin added in red.`,
@@ -109,6 +150,7 @@ export default function HomeScreen() {
       return;
     }
 
+    setPaintModeActive(false);
     setSelectedIssueId(result.issue.id);
     showSelection(
       `Fixed "${result.issue.title}" for ${result.pointsAwarded} pts. Pin turned green.`,
@@ -122,102 +164,183 @@ export default function HomeScreen() {
       return;
     }
 
+    setPaintModeActive(false);
+    setSelectedIssueId(null);
+    setDraftIssueCoordinate(null);
     showSelection(`Sighting: ${sighting.title} (${sighting.category}).`);
     Alert.alert(sighting.title, sighting.description ?? 'No description provided.');
   }
 
+  function toggleSimulatedMode() {
+    setCampusGateMessage(null);
+    setPaintModeActive(false);
+    setSelectedIssueId(null);
+    setDraftIssueCoordinate(null);
+    setSimulatedMode((existing) => (existing === 'campus' ? 'preview' : 'campus'));
+  }
+
+  function togglePaintMode() {
+    if (
+      requireCampusForAction(
+        'Painting is campus-only right now. Continue exploring in preview mode or switch back to campus mode.',
+      )
+    ) {
+      return;
+    }
+
+    setSelectedIssueId(null);
+    setDraftIssueCoordinate(null);
+    setPaintModeActive((current) => {
+      const next = !current;
+      showSelection(
+        next
+          ? `${currentGroupName} can paint owned cells only. Tap a cell to paint it.`
+          : 'Paint mode closed.',
+      );
+      return next;
+    });
+  }
+
+  function closePanel() {
+    setPaintModeActive(false);
+    setSelectedIssueId(null);
+    setDraftIssueCoordinate(null);
+  }
+
+  function promptIssuePinning() {
+    if (
+      requireCampusForAction(
+        'Issue reporting is currently gated to campus mode. Preview mode still lets you inspect the board and demo pins.',
+      )
+    ) {
+      return;
+    }
+
+    setPaintModeActive(false);
+    setSelectedIssueId(null);
+    setDraftIssueCoordinate(null);
+    showSelection('Long press the board to pin a new issue report.');
+  }
+
+  const panelVisible = paintModeActive || Boolean(draftIssueCoordinate) || Boolean(selectedIssue);
+
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <View style={styles.mapWrap}>
-        <CampusMap
-          campusBoundary={CAMPUS_CONFIG.boundary}
-          userLocation={demoUserLocation}
-          runPath={demoRunPaths}
-          cells={demoScenario.cells}
-          cellArt={visibleCellArt}
-          ownership={demoScenario.ownership}
-          issues={issues}
-          sightings={demoScenario.sightings}
-          groups={demoScenario.groups}
-          onCellPress={handleCellPress}
-          onIssuePress={handleIssuePress}
-          onSightingPress={handleSightingPress}
-          onMapLongPress={handleMapLongPress}
-        />
-      </View>
-
-      <View style={styles.topHud}>
-        <View
-          style={[
-            styles.hudCard,
-            {
-              backgroundColor:
-                colorScheme === 'dark' ? 'rgba(21, 23, 24, 0.92)' : 'rgba(255, 255, 255, 0.94)',
-            },
-          ]}>
-          <ThemedText type="defaultSemiBold">Runable Demo Map</ThemedText>
-          <ThemedText>
-            Long press anywhere on campus to report an issue at that exact location.
-          </ThemedText>
-          <View style={styles.metricRow}>
-            <View style={styles.metricChip}>
-              <ThemedText>Open {openIssues.length}</ThemedText>
-            </View>
-            <View style={styles.metricChip}>
-              <ThemedText>Fixed {fixedIssues.length}</ThemedText>
-            </View>
-            <View style={styles.metricChip}>
-              <ThemedText>Painted {visibleCellArt.length}</ThemedText>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.bottomSheet,
-          {
-            backgroundColor:
-              colorScheme === 'dark' ? 'rgba(21, 23, 24, 0.96)' : 'rgba(255, 255, 255, 0.96)',
-          },
-        ]}>
-        <ScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
-          <PixelToolbar
-            colors={paintPalette}
-            selectedColor={selectedColor}
-            paintedCount={visibleCellArt.length}
-            currentGroupName={currentGroupName}
-            onSelectColor={setSelectedColor}
+    <AppShell>
+      <SafeAreaView style={styles.screen} edges={['left', 'right']}>
+        <View style={styles.mapWrap}>
+          <CampusMap
+            boardBoundary={USF_BOARD_BOUNDARY}
+            userLocation={simulatedUserLocation}
+            runPath={demoRunPaths}
+            initialRegion={initialRegion}
+            cells={demoScenario.cells}
+            cellArt={visibleCellArt}
+            ownership={demoScenario.ownership}
+            issues={issues}
+            sightings={demoScenario.sightings}
+            groups={demoScenario.groups}
+            onCellPress={handleCellPress}
+            onIssuePress={handleIssuePress}
+            onSightingPress={handleSightingPress}
+            onMapLongPress={handleMapLongPress}
           />
+        </View>
 
-          {draftIssueCoordinate ? (
-            <IssueForm
-              coordinate={draftIssueCoordinate}
-              onCancel={() => {
-                setDraftIssueCoordinate(null);
-                showSelection('Issue draft canceled.');
-              }}
-              onSubmit={handleReportIssue}
+        <MapOverlayShell
+          top={
+            <>
+              <View style={styles.topRow}>
+                <CampusStatusChip campusName={USF_CAMPUS_NAME} accessState={accessState} />
+                <GlossyButton
+                  label={simulatedMode === 'campus' ? 'Preview' : 'Campus'}
+                  onPress={toggleSimulatedMode}
+                  tone="secondary"
+                  compact
+                />
+              </View>
+              <RunableCard>
+                <View style={styles.metricRow}>
+                  <StatTile label="Open" value={openIssues.length} />
+                  <StatTile label="Fixed" value={fixedIssues.length} />
+                  <StatTile label="Painted" value={visibleCellArt.length} />
+                </View>
+              </RunableCard>
+              {previewModeActive ? <OffCampusBanner message={getOffCampusMessage(accessState)} /> : null}
+            </>
+          }
+          toast={
+            selectedMessage ? (
+              <XPWindow variant="dark">
+                <ThemedText lightColor="#F8FAFC" darkColor="#F8FAFC">
+                  {selectedMessage}
+                </ThemedText>
+              </XPWindow>
+            ) : null
+          }
+          panel={
+            panelVisible ? (
+              <XPWindow
+                title={draftIssueCoordinate ? 'Report Issue' : selectedIssue ? 'Issue Details' : 'Paint'}
+                icon={draftIssueCoordinate ? '+' : selectedIssue ? 'i' : 'P'}
+                action={<GlossyButton label="Close" onPress={closePanel} tone="secondary" compact />}>
+                <ScrollView contentContainerStyle={styles.panelBody} showsVerticalScrollIndicator={false}>
+                  {draftIssueCoordinate ? (
+                    <IssueForm
+                      coordinate={draftIssueCoordinate}
+                      onCancel={() => {
+                        setDraftIssueCoordinate(null);
+                        showSelection('Issue draft canceled.');
+                      }}
+                      onSubmit={handleReportIssue}
+                    />
+                  ) : selectedIssue ? (
+                    <IssueCard issue={selectedIssue} onFixIssue={handleFixIssue} />
+                  ) : paintModeActive ? (
+                    <PixelToolbar
+                      colors={paintPalette}
+                      selectedColor={selectedColor}
+                      paintedCount={visibleCellArt.length}
+                      currentGroupName={currentGroupName}
+                      onSelectColor={setSelectedColor}
+                    />
+                  ) : null}
+                </ScrollView>
+              </XPWindow>
+            ) : null
+          }
+          dock={
+            <ActionDock
+              actions={[
+                {
+                  label: 'Demo Run',
+                  onPress: () => showSelection('Demo run paths are already visible on the board.'),
+                  tone: 'secondary',
+                },
+                { label: 'Report', onPress: promptIssuePinning, tone: 'primary' },
+                {
+                  label: 'Sighting',
+                  onPress: () => showSelection('Tap a sighting pin to inspect demo sightings.'),
+                  tone: 'secondary',
+                },
+                {
+                  label: 'Paint',
+                  onPress: togglePaintMode,
+                  tone: paintModeActive ? 'danger' : 'primary',
+                },
+              ]}
             />
-          ) : selectedIssue ? (
-            <IssueCard issue={selectedIssue} onFixIssue={handleFixIssue} />
-          ) : null}
-
-          <View style={styles.statsCard}>
-            <ThemedText type="defaultSemiBold">Field Status</ThemedText>
-            <ThemedText>{selectedMessage}</ThemedText>
-            <ThemedText>
-              Bulls cells: {bullsOwnedCount} | Herd cells: {herdOwnedCount} | Contested:{' '}
-              {contestedOwnership.length}
-            </ThemedText>
-            <ThemedText>
-              Report {POINTS.issueReported} pts | Fix {POINTS.issueFixed} pts
-            </ThemedText>
-            <ThemedText>Module history stays in the Development Log tab.</ThemedText>
-          </View>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+          }
+          gate={
+            campusGateMessage ? (
+              <CampusGateOverlay
+                message={campusGateMessage}
+                onDismiss={() => setCampusGateMessage(null)}
+              />
+            ) : null
+          }
+        />
+      </SafeAreaView>
+    </AppShell>
   );
 }
 
@@ -228,55 +351,19 @@ const styles = StyleSheet.create({
   mapWrap: {
     flex: 1,
   },
-  topHud: {
-    position: 'absolute',
-    top: 10,
-    left: 12,
-    right: 12,
-  },
-  hudCard: {
-    gap: 10,
-    padding: 14,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: RUNABLE_THEME.spacing.sm,
   },
   metricRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: RUNABLE_THEME.spacing.sm,
   },
-  metricChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
-  },
-  bottomSheet: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 12,
-    maxHeight: '46%',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  sheetContent: {
-    gap: 12,
-    padding: 18,
-  },
-  statsCard: {
-    gap: 8,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 103, 71, 0.08)',
+  panelBody: {
+    gap: RUNABLE_THEME.spacing.sm,
+    paddingBottom: 4,
   },
 });

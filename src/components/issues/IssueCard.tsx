@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { BeforeAfterViewer } from '@/src/components/issues/BeforeAfterViewer';
 import { FixIssueForm } from '@/src/components/issues/FixIssueForm';
+import { PixelChip } from '@/src/components/ui';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import type { IssueReport } from '@/src/types';
 
 type IssueCardProps = {
@@ -13,9 +15,13 @@ type IssueCardProps = {
 export function IssueCard({ issue, onFixIssue }: IssueCardProps) {
   return (
     <View style={styles.card}>
-      <ThemedText type="subtitle">{issue.title}</ThemedText>
-      <ThemedText>Category: {issue.category}</ThemedText>
-      <ThemedText>Status: {issue.status}</ThemedText>
+      <View style={styles.header}>
+        <ThemedText type="subtitle">{issue.title}</ThemedText>
+        <PixelChip label={issue.status} tone={issue.status === 'fixed' ? 'green' : 'gold'} />
+      </View>
+      <View style={styles.metaRow}>
+        <PixelChip label={issue.category} tone="neutral" />
+      </View>
       {issue.description ? <ThemedText>{issue.description}</ThemedText> : null}
       <BeforeAfterViewer issue={issue} />
       {onFixIssue ? <FixIssueForm issue={issue} onSubmit={onFixIssue} /> : null}
@@ -26,8 +32,15 @@ export function IssueCard({ issue, onFixIssue }: IssueCardProps) {
 const styles = StyleSheet.create({
   card: {
     gap: 10,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: RUNABLE_THEME.spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    gap: RUNABLE_THEME.spacing.xs,
   },
 });

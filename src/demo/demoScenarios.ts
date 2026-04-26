@@ -1,4 +1,4 @@
-import { CAMPUS_CONFIG, GRID_RULES, LOOP_RULES } from '@/src/constants';
+import { GRID_RULES, LOOP_RULES, USF_BOARD_BOUNDARY } from '@/src/constants';
 import { detectClosedLoop, generateCampusGrid } from '@/src/lib/geometry';
 import { applyClaimToCells, createClaimFromRun, resolveCellOwnership } from '@/src/lib/territory';
 import type { CellOwnership, CellScore, ClosedLoopResult, Group, IssueReport, RunSession, Sighting } from '@/src/types';
@@ -22,7 +22,7 @@ export type DemoTerritoryScenario = {
 
 export function runDemoTerritoryScenario(): DemoTerritoryScenario {
   const groups = demoGroups;
-  const cells = generateCampusGrid(CAMPUS_CONFIG.boundary, GRID_RULES.cellSizeMeters);
+  const cells = generateCampusGrid(USF_BOARD_BOUNDARY, GRID_RULES.cellSizeMeters);
 
   const orderedRuns = demoRunSessions.slice(0, 2);
   const loopResults = orderedRuns.map((runSession) => detectClosedLoop(runSession.path, LOOP_RULES));

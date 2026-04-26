@@ -20,7 +20,7 @@ export default function DevelopmentLogScreen() {
           Development Log
         </ThemedText>
         <ThemedText>
-          Checklist history for Modules 00 through 06 now lives here instead of the main map tab.
+          Checklist history for the implemented modules now lives here instead of the main map tab.
         </ThemedText>
       </ThemedView>
       {DEVELOPMENT_LOG.map((entry) => (

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ISSUE_CATEGORIES, IssueCategoryPicker } from '@/src/components/issues/IssueCategoryPicker';
+import { GlossyButton } from '@/src/components/ui';
 import type { Coordinate, IssueCategory } from '@/src/types';
 
 type IssueFormProps = {
@@ -56,14 +57,8 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
         Report coordinate: {coordinate[0].toFixed(4)}, {coordinate[1].toFixed(4)}
       </ThemedText>
       <View style={styles.actionRow}>
-        {onCancel ? (
-          <Pressable onPress={onCancel} style={[styles.button, styles.secondaryButton]}>
-            <ThemedText>Cancel</ThemedText>
-          </Pressable>
-        ) : null}
-        <Pressable onPress={handleSubmit} style={styles.button}>
-          <ThemedText>Report issue</ThemedText>
-        </Pressable>
+        {onCancel ? <GlossyButton label="Cancel" onPress={onCancel} tone="secondary" /> : null}
+        <GlossyButton label="Report issue" onPress={handleSubmit} tone="danger" />
       </View>
     </View>
   );
@@ -72,9 +67,6 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
 const styles = StyleSheet.create({
   container: {
     gap: 10,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
   },
   input: {
     borderWidth: 1,
@@ -82,25 +74,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: '#FFFFFF',
   },
   multiline: {
     minHeight: 74,
     textAlignVertical: 'top',
   },
-  button: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(220, 38, 38, 0.12)',
-    alignItems: 'center',
-  },
-  secondaryButton: {
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
-  },
   actionRow: {
     flexDirection: 'row',
     gap: 10,
+    flexWrap: 'wrap',
   },
 });

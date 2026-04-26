@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { GlossyButton } from '@/src/components/ui';
 import type { IssueReport } from '@/src/types';
 
 type FixIssueFormProps = {
@@ -17,11 +18,11 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
     <View style={styles.container}>
       <ThemedText type="defaultSemiBold">Fix Issue</ThemedText>
       <ThemedText>Add a demo after photo and mark this issue fixed.</ThemedText>
-      <Pressable
+      <GlossyButton
+        label="Mark fixed"
         onPress={() => onSubmit(issue.id, 'demo://issue-after-form')}
-        style={styles.button}>
-        <ThemedText>Mark fixed</ThemedText>
-      </Pressable>
+        tone="secondary"
+      />
     </View>
   );
 }
@@ -30,12 +31,5 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     paddingTop: 8,
-  },
-  button: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(22, 163, 74, 0.14)',
-    alignItems: 'center',
   },
 });
