@@ -17,11 +17,14 @@ import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/comp
 import { IssueCard, IssueForm } from '@/src/components/issues';
 import { AppShell, MapOverlayShell } from '@/src/components/layout';
 import { CampusMap } from '@/src/components/map';
-import { ActionDock, GlossyButton, RunableCard, StatTile, XPWindow } from '@/src/components/ui';
+import { ActiveRunOverlay, RunSummaryCard } from '@/src/components/run';
+import { ActionDock, type ActionDockItem, GlossyButton, RunableCard, StatTile, XPWindow } from '@/src/components/ui';
 import { runDemoTerritoryScenario } from '@/src/demo';
+import { completeRunClaim, type CompleteRunClaimResult } from '@/src/features/runs';
 import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
 import { usePixelArt } from '@/src/hooks/usePixelArt';
+import { useRunTracker } from '@/src/hooks/useRunTracker';
 import type { Coordinate } from '@/src/types';
 
 const demoScenario = runDemoTerritoryScenario();
@@ -39,6 +42,9 @@ export default function HomeScreen() {
   const [draftIssueCoordinate, setDraftIssueCoordinate] = useState<Coordinate | null>(null);
   const [paintModeActive, setPaintModeActive] = useState(false);
   const [campusGateMessage, setCampusGateMessage] = useState<string | null>(null);
+  const [territoryScores, setTerritoryScores] = useState(demoScenario.scores);
+  const [territoryOwnership, setTerritoryOwnership] = useState(demoScenario.ownership);
+  const [runSummary, setRunSummary] = useState<CompleteRunClaimResult | null>(null);
 
   const simulatedUserLocation = simulatedMode === 'campus' ? onCampusLocation : previewLocation;
   const accessState = getCampusAccessState(simulatedUserLocation);
@@ -52,10 +58,14 @@ export default function HomeScreen() {
     currentUserId,
     currentUserGroupId,
   });
+  const runTracker = useRunTracker({
+    userId: currentUserId,
+    groupId: currentUserGroupId,
+  });
   const { selectedColor, setSelectedColor, visibleCellArt, paintCell } = usePixelArt({
     userGroupId: currentUserGroupId,
     userId: currentUserId,
-    ownership: demoScenario.ownership,
+    ownership: territoryOwnership,
   });
 
   const selectedIssue = useMemo(
@@ -86,7 +96,7 @@ export default function HomeScreen() {
       return;
     }
 
-    const cellOwnership = demoScenario.ownership.find((cell) => cell.cellId === cellId);
+    const cellOwnership = territoryOwnership.find((cell) => cell.cellId === cellId);
     if (!cellOwnership) {
       return;
     }
@@ -176,7 +186,65 @@ export default function HomeScreen() {
     setPaintModeActive(false);
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
+    setRunSummary(null);
     setSimulatedMode((existing) => (existing === 'campus' ? 'preview' : 'campus'));
+  }
+
+  async function handleStartRun() {
+    if (
+      requireCampusForAction(
+        'Real GPS run tracking is campus-only. Switch back to campus mode to start recording a live run.',
+      )
+    ) {
+      return;
+    }
+
+    setSelectedIssueId(null);
+    setDraftIssueCoordinate(null);
+    setPaintModeActive(false);
+    setRunSummary(null);
+    const started = await runTracker.startRun();
+    if (started) {
+      showSelection('Live run started. Move around campus to record GPS points.');
+    }
+  }
+
+  async function handleResumeRun() {
+    await runTracker.resumeRun();
+    showSelection('Run resumed. GPS points are recording again.');
+  }
+
+  function handleFinishRun() {
+    const completedRun = runTracker.finishRun();
+    if (!completedRun) {
+      return;
+    }
+
+    const result = completeRunClaim({
+      runSession: completedRun,
+      cells: demoScenario.cells,
+      existingScores: territoryScores,
+      userId: currentUserId,
+      groupId: currentUserGroupId,
+    });
+
+    setRunSummary(result);
+
+    if (result.claimCreated) {
+      setTerritoryScores(result.updatedScores);
+      setTerritoryOwnership(result.updatedOwnership);
+      showSelection(
+        `Valid loop. Claimed ${result.claimedCellCount} cells for ${currentGroupName} and earned ${result.pointsAwarded} pts.`,
+      );
+      return;
+    }
+
+    showSelection(`Run invalid. ${result.invalidReasons[0] ?? 'Loop rules were not met.'}`);
+  }
+
+  function handleCancelRun() {
+    runTracker.cancelRun();
+    showSelection('Live run canceled.');
   }
 
   function togglePaintMode() {
@@ -205,6 +273,7 @@ export default function HomeScreen() {
     setPaintModeActive(false);
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
+    setRunSummary(null);
   }
 
   function promptIssuePinning() {
@@ -222,7 +291,64 @@ export default function HomeScreen() {
     showSelection('Long press the board to pin a new issue report.');
   }
 
-  const panelVisible = paintModeActive || Boolean(draftIssueCoordinate) || Boolean(selectedIssue);
+  const hasActiveRunPanel =
+    runTracker.status === 'recording' ||
+    runTracker.status === 'paused' ||
+    runTracker.status === 'permissionDenied' ||
+    runTracker.status === 'error';
+
+  const panelVisible =
+    hasActiveRunPanel ||
+    paintModeActive ||
+    Boolean(draftIssueCoordinate) ||
+    Boolean(selectedIssue) ||
+    Boolean(runSummary);
+
+  const visibleRunPaths =
+    runTracker.livePathCoordinates.length > 1
+      ? [...demoRunPaths, runTracker.livePathCoordinates]
+      : demoRunPaths;
+
+  const dockActions: ActionDockItem[] =
+    runTracker.status === 'recording' || runTracker.status === 'paused'
+      ? [
+          {
+            label: runTracker.status === 'recording' ? 'Pause Run' : 'Resume Run',
+            onPress: runTracker.status === 'recording' ? runTracker.pauseRun : handleResumeRun,
+            tone: runTracker.status === 'recording' ? 'secondary' : 'primary',
+          },
+          {
+            label: 'Finish Run',
+            onPress: handleFinishRun,
+            tone: 'dark' as const,
+          },
+          {
+            label: 'Cancel',
+            onPress: handleCancelRun,
+            tone: 'danger' as const,
+          },
+        ]
+      : [
+          {
+            label:
+              runTracker.status === 'permissionDenied' || runTracker.status === 'error'
+                ? 'Enable GPS'
+                : 'Start Run',
+            onPress: handleStartRun,
+            tone: 'primary' as const,
+          },
+          { label: 'Report', onPress: promptIssuePinning, tone: 'secondary' as const },
+          {
+            label: 'Sighting',
+            onPress: () => showSelection('Tap a sighting pin to inspect demo sightings.'),
+            tone: 'secondary' as const,
+          },
+          {
+            label: 'Paint',
+            onPress: togglePaintMode,
+            tone: paintModeActive ? ('danger' as const) : ('primary' as const),
+          },
+        ];
 
   return (
     <AppShell>
@@ -230,12 +356,12 @@ export default function HomeScreen() {
         <View style={styles.mapWrap}>
           <CampusMap
             boardBoundary={USF_BOARD_BOUNDARY}
-            userLocation={simulatedUserLocation}
-            runPath={demoRunPaths}
+            userLocation={runTracker.currentLocation ?? simulatedUserLocation}
+            runPath={visibleRunPaths}
             initialRegion={initialRegion}
             cells={demoScenario.cells}
             cellArt={visibleCellArt}
-            ownership={demoScenario.ownership}
+            ownership={territoryOwnership}
             issues={issues}
             sightings={demoScenario.sightings}
             groups={demoScenario.groups}
@@ -280,11 +406,52 @@ export default function HomeScreen() {
           panel={
             panelVisible ? (
               <XPWindow
-                title={draftIssueCoordinate ? 'Report Issue' : selectedIssue ? 'Issue Details' : 'Paint'}
-                icon={draftIssueCoordinate ? '+' : selectedIssue ? 'i' : 'P'}
-                action={<GlossyButton label="Close" onPress={closePanel} tone="secondary" compact />}>
+                title={
+                  hasActiveRunPanel
+                    ? 'Live Run'
+                    : draftIssueCoordinate
+                      ? 'Report Issue'
+                      : selectedIssue
+                        ? 'Issue Details'
+                        : paintModeActive
+                          ? 'Paint'
+                          : 'Run Summary'
+                }
+                icon={
+                  hasActiveRunPanel
+                    ? 'R'
+                    : draftIssueCoordinate
+                      ? '+'
+                      : selectedIssue
+                        ? 'i'
+                        : paintModeActive
+                          ? 'P'
+                          : 'S'
+                }
+                action={
+                  hasActiveRunPanel ? undefined : (
+                    <GlossyButton label="Close" onPress={closePanel} tone="secondary" compact />
+                  )
+                }>
                 <ScrollView contentContainerStyle={styles.panelBody} showsVerticalScrollIndicator={false}>
-                  {draftIssueCoordinate ? (
+                  {hasActiveRunPanel ? (
+                    <ActiveRunOverlay
+                      status={runTracker.status}
+                      distanceMeters={runTracker.distanceMeters}
+                      elapsedSeconds={runTracker.elapsedSeconds}
+                      pointCount={runTracker.path.length}
+                      errorMessage={runTracker.errorMessage}
+                      onStartRun={() => {
+                        void handleStartRun();
+                      }}
+                      onPauseRun={runTracker.pauseRun}
+                      onResumeRun={() => {
+                        void handleResumeRun();
+                      }}
+                      onFinishRun={handleFinishRun}
+                      onCancelRun={handleCancelRun}
+                    />
+                  ) : draftIssueCoordinate ? (
                     <IssueForm
                       coordinate={draftIssueCoordinate}
                       onCancel={() => {
@@ -303,32 +470,20 @@ export default function HomeScreen() {
                       currentGroupName={currentGroupName}
                       onSelectColor={setSelectedColor}
                     />
+                  ) : runSummary ? (
+                    <RunSummaryCard
+                      runSession={runSummary.runSession}
+                      loopResult={runSummary.loopResult}
+                      invalidReasons={runSummary.invalidReasons}
+                      claimedCellCount={runSummary.claimedCellCount}
+                    />
                   ) : null}
                 </ScrollView>
               </XPWindow>
             ) : null
           }
           dock={
-            <ActionDock
-              actions={[
-                {
-                  label: 'Demo Run',
-                  onPress: () => showSelection('Demo run paths are already visible on the board.'),
-                  tone: 'secondary',
-                },
-                { label: 'Report', onPress: promptIssuePinning, tone: 'primary' },
-                {
-                  label: 'Sighting',
-                  onPress: () => showSelection('Tap a sighting pin to inspect demo sightings.'),
-                  tone: 'secondary',
-                },
-                {
-                  label: 'Paint',
-                  onPress: togglePaintMode,
-                  tone: paintModeActive ? 'danger' : 'primary',
-                },
-              ]}
-            />
+            <ActionDock actions={dockActions} />
           }
           gate={
             campusGateMessage ? (

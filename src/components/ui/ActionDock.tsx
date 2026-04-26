@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { GlossyButton } from '@/src/components/ui/GlossyButton';
 import { RUNABLE_THEME } from '@/src/constants/theme';
 
-type ActionDockItem = {
+export type ActionDockItem = {
   label: string;
   onPress: () => void;
   tone?: 'primary' | 'secondary' | 'danger' | 'dark';

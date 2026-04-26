@@ -119,4 +119,16 @@ export const DEVELOPMENT_LOG = [
       'Development Log now documents the Module 14 app-shell pass',
     ],
   },
+  {
+    module: 'Module 09',
+    title: 'Real Run Tracking',
+    checklist: [
+      'Real GPS tracking now requests foreground location permission through Expo Location',
+      'Users can start, pause, resume, finish, and cancel a live run on the map screen',
+      'Live path, elapsed time, distance, and recorded GPS point count update while tracking',
+      'Finished runs are checked against the existing closed-loop geometry rules',
+      'Valid live loops immediately create local territory claims and update board ownership',
+      'Invalid loops show clear failure reasons without breaking demo mode',
+    ],
+  },
 ] as const;
