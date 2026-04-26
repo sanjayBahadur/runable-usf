@@ -1,0 +1,33 @@
+import type { IssueReport } from '@/src/types';
+
+export const demoIssues: IssueReport[] = [
+  {
+    id: 'issue-001',
+    title: 'Overflowing recycling bin',
+    description: 'Bin near the student center is full and spilling onto the walkway.',
+    coordinate: [28.0684, -82.4237],
+    status: 'open',
+    reportedByUserId: 'user-bulls-02',
+    createdAt: '2026-04-25T12:48:00.000Z',
+  },
+  {
+    id: 'issue-002',
+    title: 'Broken bench slat',
+    description: 'Wooden bench by the library loop has a cracked seating board.',
+    coordinate: [28.0667, -82.4228],
+    status: 'open',
+    reportedByUserId: 'user-herd-02',
+    createdAt: '2026-04-25T12:55:00.000Z',
+  },
+  {
+    id: 'issue-003',
+    title: 'Graffiti cleaned from utility box',
+    description: 'Previously tagged box has been cleaned by facilities.',
+    coordinate: [28.0678, -82.4219],
+    status: 'fixed',
+    reportedByUserId: 'user-roamers-02',
+    fixedByUserId: 'user-bulls-03',
+    createdAt: '2026-04-24T18:20:00.000Z',
+    fixedAt: '2026-04-25T09:10:00.000Z',
+  },
+];
