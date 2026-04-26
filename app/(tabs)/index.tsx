@@ -15,6 +15,7 @@ import { RUNABLE_THEME } from '@/src/constants/theme';
 import { AuthGate } from '@/src/components/auth';
 import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/components/campus';
 import { IssueCard, IssueForm } from '@/src/components/issues';
+import { SightingCard, SightingForm, LandmarkVoteCard } from '@/src/components/sightings';
 import { AppShell, MapOverlayShell } from '@/src/components/layout';
 import { CampusMap } from '@/src/components/map';
 import { ActiveRunOverlay, RunSummaryCard } from '@/src/components/run';
@@ -24,6 +25,7 @@ import { completeRunClaim, type CompleteRunClaimResult } from '@/src/features/ru
 import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
+import { useSightings } from '@/src/hooks/useSightings';
 import { usePixelArt } from '@/src/hooks/usePixelArt';
 import { useRunTracker } from '@/src/hooks/useRunTracker';
 import { useAppStore } from '@/src/store/appStore';
@@ -60,6 +62,10 @@ export default function HomeScreen() {
   const [showedInitialAuth, setShowedInitialAuth] = useState(false);
   const [simulatorActive, setSimulatorActive] = useState(false);
 
+  const [interactionIntent, setInteractionIntent] = useState<'issue' | 'sighting'>('issue');
+  const [draftSightingCoordinate, setDraftSightingCoordinate] = useState<Coordinate | null>(null);
+  const [selectedSightingId, setSelectedSightingId] = useState<string | null>(null);
+
   const isCampusMode = appMode === 'campus';
   const simulatedUserLocation = isCampusMode ? onCampusLocation : previewLocation;
   const accessState = getCampusAccessState(simulatedUserLocation);
@@ -90,6 +96,10 @@ export default function HomeScreen() {
     currentUserId,
     currentUserGroupId,
   });
+  const { sightings, addSighting } = useSightings({
+    initialSightings: demoScenario.sightings,
+    currentUserId,
+  });
   const runTracker = useRunTracker({
     userId: currentUserId,
     groupId: currentUserGroupId,
@@ -103,6 +113,11 @@ export default function HomeScreen() {
   const selectedIssue = useMemo(
     () => issues.find((entry) => entry.id === selectedIssueId) ?? null,
     [issues, selectedIssueId],
+  );
+
+  const selectedSighting = useMemo(
+    () => sightings.find((entry) => entry.id === selectedSightingId) ?? null,
+    [sightings, selectedSightingId],
   );
 
   function showSelection(message: string) {
@@ -140,6 +155,8 @@ export default function HomeScreen() {
     if (!issue) return;
 
     setDraftIssueCoordinate(null);
+    setDraftSightingCoordinate(null);
+    setSelectedSightingId(null);
     setSelectedIssueId(issueId);
     showSelection(`Issue selected: ${issue.title} (${issue.status}, ${issue.category}).`);
   }
@@ -152,17 +169,21 @@ export default function HomeScreen() {
 
     if (
       requireCampusForAction(
-        'Issue reporting is campus-first. Switch to campus mode to start reporting.',
+        `Creating a ${interactionIntent} requires campus mode. Sign in to start.`,
       )
     ) {
       return;
     }
 
-    setSelectedIssueId(null);
-    setDraftIssueCoordinate(coordinate);
-    showSelection(
-      `Issue draft opened at ${coordinate[0].toFixed(4)}, ${coordinate[1].toFixed(4)}.`,
-    );
+    if (interactionIntent === 'sighting') {
+      setSelectedSightingId(null);
+      setDraftSightingCoordinate(coordinate);
+      showSelection(`Sighting draft opened.`);
+    } else {
+      setSelectedIssueId(null);
+      setDraftIssueCoordinate(coordinate);
+      showSelection(`Issue draft opened.`);
+    }
   }
 
   function handleReportIssue(input: Parameters<typeof reportIssue>[0]) {
@@ -172,7 +193,13 @@ export default function HomeScreen() {
     showSelection(
       `Reported "${result.issue.title}" for ${result.pointsAwarded} pts. Pin added in red.`,
     );
-    Alert.alert('Issue reported', `${result.issue.title} added for ${result.pointsAwarded} pts.`);
+  }
+
+  function handleAddSighting(input: Parameters<typeof addSighting>[0]) {
+    const newSighting = addSighting(input);
+    setDraftSightingCoordinate(null);
+    setSelectedSightingId(newSighting.id);
+    showSelection(`Sighting registered: "${newSighting.title}".`);
   }
 
   function handleFixIssue(issueId: string, afterPhotoUri?: string) {
@@ -187,13 +214,26 @@ export default function HomeScreen() {
   }
 
   function handleSightingPress(sightingId: string) {
-    const sighting = demoScenario.sightings.find((entry) => entry.id === sightingId);
+    const sighting = sightings.find((entry) => entry.id === sightingId);
     if (!sighting) return;
 
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
-    showSelection(`Sighting: ${sighting.title} (${sighting.category}).`);
-    Alert.alert(sighting.title, sighting.description ?? 'No description provided.');
+    setDraftSightingCoordinate(null);
+    setSelectedSightingId(sighting.id);
+    showSelection(`Sighting selected: ${sighting.title} (${sighting.category}).`);
+  }
+
+  function promptIssuePinning() {
+    if (requireCampusForAction('Sign in to report an issue.')) return;
+    setInteractionIntent('issue');
+    showSelection('Long-press anywhere on the map to drop an issue pin.');
+  }
+
+  function promptSightingRegistration() {
+    if (requireCampusForAction('Sign in to register a sighting.')) return;
+    setInteractionIntent('sighting');
+    showSelection('Long-press anywhere on the map to place a sighting pin.');
   }
 
   function toggleSimulatedMode() {
@@ -292,33 +332,9 @@ export default function HomeScreen() {
   function closePanel() {
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
+    setDraftSightingCoordinate(null);
+    setSelectedSightingId(null);
     setRunSummary(null);
-  }
-
-  function promptIssuePinning() {
-    if (
-      requireCampusForAction(
-        'Issue reporting requires campus mode. Sign in and switch to campus to start.',
-      )
-    ) {
-      return;
-    }
-
-    setSelectedIssueId(null);
-    setDraftIssueCoordinate(null);
-    showSelection('Long press the board to pin a new issue report.');
-  }
-
-  function promptSightingRegistration() {
-    if (
-      requireCampusForAction(
-        'Sighting registration requires campus mode. Sign in and switch to campus.',
-      )
-    ) {
-      return;
-    }
-
-    showSelection('Tap a sighting pin to inspect it, or long press to register a new one.');
   }
 
   const hasActiveRunPanel =
@@ -330,7 +346,9 @@ export default function HomeScreen() {
   const panelVisible =
     hasActiveRunPanel ||
     Boolean(draftIssueCoordinate) ||
+    Boolean(draftSightingCoordinate) ||
     Boolean(selectedIssue) ||
+    Boolean(selectedSighting) ||
     Boolean(runSummary);
 
   const visibleRunPaths =
@@ -389,7 +407,7 @@ export default function HomeScreen() {
             cellArt={visibleCellArt}
             ownership={territoryOwnership}
             issues={issues}
-            sightings={demoScenario.sightings}
+            sightings={sightings}
             groups={demoScenario.groups}
             simulatorActive={simulatorActive}
             onToggleSimulator={toggleSimulatorMode}
@@ -439,7 +457,11 @@ export default function HomeScreen() {
                       ? '📋 Report Issue'
                       : selectedIssue
                         ? '📋 Issue Details'
-                        : '🏁 Run Summary'
+                        : draftSightingCoordinate
+                          ? '📸 Register Sighting'
+                          : selectedSighting
+                            ? '📍 Sighting Details'
+                            : '🏁 Run Summary'
                 }
                 action={
                   hasActiveRunPanel ? undefined : (
@@ -475,6 +497,21 @@ export default function HomeScreen() {
                     />
                   ) : selectedIssue ? (
                     <IssueCard issue={selectedIssue} onFixIssue={handleFixIssue} />
+                  ) : draftSightingCoordinate ? (
+                    <SightingForm
+                      coordinate={draftSightingCoordinate}
+                      onSubmit={handleAddSighting}
+                      onCancel={() => {
+                        setDraftSightingCoordinate(null);
+                        showSelection('Sighting draft canceled.');
+                      }}
+                    />
+                  ) : selectedSighting ? (
+                    selectedSighting.category === 'landmark' ? (
+                      <LandmarkVoteCard sighting={selectedSighting} />
+                    ) : (
+                      <SightingCard sighting={selectedSighting} />
+                    )
                   ) : runSummary ? (
                     <RunSummaryCard
                       runSession={runSummary.runSession}

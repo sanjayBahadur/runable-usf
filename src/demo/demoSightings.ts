@@ -5,7 +5,7 @@ export const demoSightings: Sighting[] = [
     id: 'sighting-001',
     title: 'Campus turtle by the pond',
     description: 'Small turtle spotted crossing near the water feature.',
-    category: 'wildlife',
+    category: 'animal',
     coordinate: [28.061, -82.4139],
     reportedByUserId: 'user-herd-03',
     createdAt: '2026-04-25T11:40:00.000Z',

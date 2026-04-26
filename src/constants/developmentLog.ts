@@ -148,4 +148,16 @@ export const DEVELOPMENT_LOG = [
       'All feed, leaderboard, and dev log screens updated to use consistent XP theme tokens',
     ],
   },
+  {
+    module: 'Module 10',
+    title: 'Sightings & Landmarks',
+    checklist: [
+      'Sightings data types created with strict categories (animal, plant, scenic, water, landmark, other)',
+      'Sighting hooks, mock data, and local create patterns established',
+      'Sighting category pickers and interactive XP-window submission forms implemented',
+      'Sightings naturally render on map as distinct interactive pins',
+      'Landmarks enable community naming functionality via separate Vote Card UI',
+      'Map engine now distinctly handles interactive intentions like reporting vs sightseeing',
+    ],
+  },
 ] as const;

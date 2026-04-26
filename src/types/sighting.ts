@@ -1,6 +1,6 @@
 import type { Coordinate, EntityId, ISODateString } from '@/src/types/common';
 
-export type SightingCategory = 'wildlife' | 'hazard' | 'landmark' | 'event' | 'other';
+export type SightingCategory = 'animal' | 'plant' | 'scenic' | 'water' | 'landmark' | 'other';
 
 export type Sighting = {
   id: EntityId;
