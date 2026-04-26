@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import MapView from 'react-native-maps';
+import MapView, { type LongPressEvent } from 'react-native-maps';
 
 import { CAMPUS_CONFIG } from '@/src/constants';
 import { PixelArtOverlay } from '@/src/components/art';
@@ -33,6 +33,7 @@ type CampusMapProps = {
   onCellPress?: (cellId: string) => void;
   onIssuePress?: (issueId: string) => void;
   onSightingPress?: (sightingId: string) => void;
+  onMapLongPress?: (coordinate: Coordinate) => void;
 };
 
 const INITIAL_REGION = {
@@ -55,10 +56,19 @@ export function CampusMap({
   onCellPress,
   onIssuePress,
   onSightingPress,
+  onMapLongPress,
 }: CampusMapProps) {
+  function handleMapLongPress(event: LongPressEvent) {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    onMapLongPress?.([latitude, longitude]);
+  }
+
   return (
     <View style={styles.container}>
-      <MapView style={StyleSheet.absoluteFill} initialRegion={INITIAL_REGION}>
+      <MapView
+        style={StyleSheet.absoluteFill}
+        initialRegion={INITIAL_REGION}
+        onLongPress={handleMapLongPress}>
         <CampusBoundaryLayer boundary={campusBoundary} />
         <TerritoryCellLayer
           cells={cells}

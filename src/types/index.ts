@@ -3,7 +3,7 @@ export type { UserProfile } from '@/src/types/user';
 export type { Group } from '@/src/types/group';
 export type { ClosedLoopResult, RunPoint, RunSession } from '@/src/types/run';
 export type { CampusCell, CellOwnership, CellScore, ClaimPolygon } from '@/src/types/territory';
-export type { IssueReport, IssueStatus } from '@/src/types/issue';
+export type { IssueCategory, IssueReport, IssueStatus } from '@/src/types/issue';
 export type { Sighting, SightingCategory } from '@/src/types/sighting';
 export type { FeedItem, FeedItemType } from '@/src/types/feed';
 export type { CellArt } from '@/src/types/art';

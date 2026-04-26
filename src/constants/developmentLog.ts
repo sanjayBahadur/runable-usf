@@ -1,0 +1,86 @@
+export const DEVELOPMENT_LOG = [
+  {
+    module: 'Module 00',
+    title: 'Shared Types and Constants',
+    checklist: [
+      'Shared types created under src/types',
+      'Shared constants created under src/constants',
+      'Barrel exports available for imports',
+      'Approximate USF campus boundary added',
+      'Loop, grid, and points rules defined',
+      'Expo Go screen updated to show Module 00 status',
+    ],
+  },
+  {
+    module: 'Module 01',
+    title: 'Geometry Engine',
+    checklist: [
+      'Pure TypeScript geometry helpers exported from src/lib/geometry/index.ts',
+      'Haversine distance and full path distance calculations added',
+      'Closed-loop detection validates distance, closure, point count, and area',
+      'Campus grid cells now include center coordinates and polygon corners',
+      'Cell selection filters grid cells by polygon containment',
+      'Expo Go screen renders live Module 01 geometry status',
+    ],
+  },
+  {
+    module: 'Module 02',
+    title: 'Territory Engine',
+    checklist: [
+      'Pure TypeScript territory helpers exported from src/lib/territory/index.ts',
+      'Claim score now combines base points, distance, area, and capped pace bonus',
+      'Valid run sessions can be converted into scored territory claims',
+      'Claims apply only to cells whose centers fall inside the claim polygon',
+      'Ownership resolves by highest score while keeping runner-up overlap data',
+      'Expo Go screen renders a visible Module 02 overlap checklist and demo',
+    ],
+  },
+  {
+    module: 'Module 03',
+    title: 'Demo Mode',
+    checklist: [
+      'Mock demo groups, paths, issues, and sightings live under src/demo',
+      'Demo scenario runs without GPS, Supabase, or live services',
+      'Campus grid, valid loop claims, and overlap resolution are assembled together',
+      'Returned demo payload includes groups, cells, claims, scores, ownership, issues, and sightings',
+      'Group B wins contested cells while Group A keeps non-overlapped territory',
+      'Expo Go screen renders a visible Module 03 demo-mode checklist and snapshot',
+    ],
+  },
+  {
+    module: 'Module 04',
+    title: 'Map Rendering',
+    checklist: [
+      'Campus boundary renders from shared campus coordinates',
+      'Territory cells render in owning group colors',
+      'Overlapping ownership from the demo scenario appears on the map',
+      'Demo run paths, issues, sightings, and a user marker render together',
+      'Map layers stay prop-driven and do not calculate game logic',
+      'Expo Go opens to a visible Module 04 checklist and working map',
+    ],
+  },
+  {
+    module: 'Module 05',
+    title: 'Pixel Art Layer',
+    checklist: [
+      'Pixel art rules only allow painting currently owned cells',
+      'A color picker and paint toolbar render above the live map',
+      'Tapping owned cells paints them with the selected color',
+      'Rival-owned cells reject paint attempts',
+      'Painted cells appear as a separate overlay on the map',
+      'Expo Go shows a visible Module 05 checklist and working paint flow',
+    ],
+  },
+  {
+    module: 'Module 06',
+    title: 'Issues: Reporting & Fixing',
+    checklist: [
+      'Issue reporting and fixing use local/demo state first',
+      'Issue form supports title, category, description, coordinate, and mock photo fallback',
+      'Issue cards show category, description, before and after photo URIs, and status',
+      'Open issue pins stay red and fixed issue pins turn green on the map',
+      'Fixing an issue returns points and updates the selected issue in place',
+      'Development Log tab documents Module 00 through Module 06 checklists',
+    ],
+  },
+] as const;
