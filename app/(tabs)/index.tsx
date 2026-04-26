@@ -7,19 +7,24 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CAMPUS_CONFIG, POINTS } from '@/src/constants';
+import { PixelToolbar } from '@/src/components/art';
 import { CampusMap } from '@/src/components/map';
 import { runDemoTerritoryScenario } from '@/src/demo';
+import { usePixelArt } from '@/src/hooks/usePixelArt';
 
 const moduleChecklist = [
-  'Campus boundary renders from shared campus coordinates',
-  'Territory cells render in owning group colors',
-  'Overlapping ownership from the demo scenario appears on the map',
-  'Demo run paths, issues, sightings, and a user marker render together',
-  'Map layers stay prop-driven and do not calculate game logic',
-  'Expo Go opens to a visible Module 04 checklist and working map',
+  'Pixel art rules only allow painting currently owned cells',
+  'A color picker and paint toolbar render above the live map',
+  'Tapping owned cells paints them with the selected color',
+  'Rival-owned cells reject paint attempts',
+  'Painted cells appear as a separate overlay on the map',
+  'Expo Go shows a visible Module 05 checklist and working paint flow',
 ];
 
 const demoScenario = runDemoTerritoryScenario();
+const currentUserGroupId = 'group-bulls';
+const currentUserId = 'user-bulls-demo';
+const paintPalette = ['#F97316', '#0EA5E9', '#FACC15', '#F43F5E', '#22C55E', '#A855F7'];
 const contestedOwnership = demoScenario.ownership.filter((cell) => cell.runnerUpGroupId);
 const bullsOwnedCount = demoScenario.ownership.filter((cell) => cell.groupId === 'group-bulls').length;
 const herdOwnedCount = demoScenario.ownership.filter((cell) => cell.groupId === 'group-herd').length;
@@ -37,8 +42,15 @@ const demoUserLocation = CAMPUS_CONFIG.center;
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'light';
+  const currentGroupName =
+    demoScenario.groups.find((group) => group.id === currentUserGroupId)?.name ?? currentUserGroupId;
+  const { selectedColor, setSelectedColor, visibleCellArt, paintCell } = usePixelArt({
+    userGroupId: currentUserGroupId,
+    userId: currentUserId,
+    ownership: demoScenario.ownership,
+  });
   const [selectedMessage, setSelectedMessage] = useState(
-    'Tap a territory cell, issue pin, or sighting pin.',
+    'Select a color, then tap one of the Bulls-owned cells to paint it.',
   );
 
   function showSelection(message: string) {
@@ -51,9 +63,19 @@ export default function HomeScreen() {
       return;
     }
 
+    const paintResult = paintCell(cellId);
+
+    if (paintResult.painted) {
+      showSelection(`Painted ${cellId} with ${selectedColor} for ${currentGroupName}.`);
+      return;
+    }
+
     const groupName =
-      demoScenario.groups.find((group) => group.id === cellOwnership.groupId)?.name ?? cellOwnership.groupId;
-    showSelection(`Cell ${cellId} is owned by ${groupName} at score ${cellOwnership.score.toFixed(1)}.`);
+      demoScenario.groups.find((group) => group.id === cellOwnership.groupId)?.name ??
+      cellOwnership.groupId;
+    showSelection(
+      `Cannot paint ${cellId}. ${groupName} owns it at score ${cellOwnership.score.toFixed(1)}.`,
+    );
   }
 
   function handleIssuePress(issueId: string) {
@@ -84,6 +106,7 @@ export default function HomeScreen() {
           userLocation={demoUserLocation}
           runPath={demoRunPaths}
           cells={demoScenario.cells}
+          cellArt={visibleCellArt}
           ownership={demoScenario.ownership}
           issues={demoScenario.issues}
           sightings={demoScenario.sightings}
@@ -103,17 +126,25 @@ export default function HomeScreen() {
         ]}>
         <ScrollView contentContainerStyle={styles.overlayContent} showsVerticalScrollIndicator={false}>
           <View style={styles.titleContainer}>
-            <ThemedText type="title">Module 04</ThemedText>
-            <ThemedText type="subtitle">Map Rendering</ThemedText>
+            <ThemedText type="title">Module 05</ThemedText>
+            <ThemedText type="subtitle">Pixel Art Layer</ThemedText>
           </View>
 
           <View style={styles.card}>
             <ThemedText type="defaultSemiBold">Visible completion status</ThemedText>
             <ThemedText>
-              Module 04 now opens to a working demo map with boundary, owned territory, run paths,
-              issue pins, sighting pins, and a live checklist overlay in Expo Go.
+              Module 05 now adds cell-based painting on top of the demo map, with local art state,
+              ownership checks, a color picker, and a live checklist overlay in Expo Go.
             </ThemedText>
           </View>
+
+          <PixelToolbar
+            colors={paintPalette}
+            selectedColor={selectedColor}
+            paintedCount={visibleCellArt.length}
+            currentGroupName={currentGroupName}
+            onSelectColor={setSelectedColor}
+          />
 
           <View style={styles.card}>
             <ThemedText type="subtitle">Task checklist</ThemedText>
@@ -125,10 +156,13 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.card}>
-            <ThemedText type="subtitle">Live map snapshot</ThemedText>
+            <ThemedText type="subtitle">Live paint snapshot</ThemedText>
             <ThemedText>Groups rendered: {demoScenario.groups.length}</ThemedText>
             <ThemedText>Map cells rendered: {demoScenario.ownership.length}</ThemedText>
             <ThemedText>Contested cells visible: {contestedOwnership.length}</ThemedText>
+            <ThemedText>Current painting group: {currentGroupName}</ThemedText>
+            <ThemedText>Selected color: {selectedColor}</ThemedText>
+            <ThemedText>Painted cells visible: {visibleCellArt.length}</ThemedText>
             <ThemedText>Run paths visible: {demoRunPaths.length}</ThemedText>
             <ThemedText>Open issues: {openIssues.length}</ThemedText>
             <ThemedText>Fixed issues: {fixedIssues.length}</ThemedText>
@@ -141,7 +175,9 @@ export default function HomeScreen() {
           </View>
 
           <Pressable
-            onPress={() => setSelectedMessage('Tap a territory cell, issue pin, or sighting pin.')}
+            onPress={() =>
+              setSelectedMessage('Select a color, then tap one of the Bulls-owned cells to paint it.')
+            }
             style={({ pressed }) => [
               styles.selectionCard,
               {
@@ -150,7 +186,7 @@ export default function HomeScreen() {
                   : 'rgba(37, 99, 235, 0.08)',
               },
             ]}>
-            <ThemedText type="subtitle">Selection</ThemedText>
+            <ThemedText type="subtitle">Paint Status</ThemedText>
             <ThemedText>{selectedMessage}</ThemedText>
             {sampleOverlap ? (
               <ThemedText>
@@ -158,6 +194,9 @@ export default function HomeScreen() {
                 {sampleOverlap.runnerUpGroupId}.
               </ThemedText>
             ) : null}
+            <ThemedText>
+              Bulls can paint their owned cells only. Try a Bulls cell first, then try a Herd cell.
+            </ThemedText>
           </Pressable>
         </ScrollView>
       </View>
@@ -177,7 +216,7 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     bottom: 12,
-    maxHeight: '47%',
+    maxHeight: '52%',
     borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -206,5 +245,6 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 16,
     borderRadius: 20,
+    marginBottom: 6,
   },
 });

@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import MapView from 'react-native-maps';
 
 import { CAMPUS_CONFIG } from '@/src/constants';
+import { PixelArtOverlay } from '@/src/components/art';
 import { CampusBoundaryLayer } from '@/src/components/map/CampusBoundaryLayer';
 import { IssuePinLayer } from '@/src/components/map/IssuePinLayer';
 import { MapLegend } from '@/src/components/map/MapLegend';
@@ -9,13 +10,22 @@ import { RunPathLayer } from '@/src/components/map/RunPathLayer';
 import { SightingPinLayer } from '@/src/components/map/SightingPinLayer';
 import { TerritoryCellLayer } from '@/src/components/map/TerritoryCellLayer';
 import { UserLocationMarker } from '@/src/components/map/UserLocationMarker';
-import type { CampusCell, CellOwnership, Coordinate, Group, IssueReport, Sighting } from '@/src/types';
+import type {
+  CampusCell,
+  CellArt,
+  CellOwnership,
+  Coordinate,
+  Group,
+  IssueReport,
+  Sighting,
+} from '@/src/types';
 
 type CampusMapProps = {
   campusBoundary?: Coordinate[];
   userLocation?: Coordinate | null;
   runPath?: Coordinate[] | Coordinate[][];
   cells: CampusCell[];
+  cellArt?: CellArt[];
   ownership: CellOwnership[];
   issues: IssueReport[];
   sightings: Sighting[];
@@ -37,6 +47,7 @@ export function CampusMap({
   userLocation,
   runPath,
   cells,
+  cellArt = [],
   ownership,
   issues,
   sightings,
@@ -55,6 +66,7 @@ export function CampusMap({
           groups={groups}
           onCellPress={onCellPress}
         />
+        <PixelArtOverlay cells={cells} cellArt={cellArt} />
         <RunPathLayer runPath={runPath} />
         <IssuePinLayer issues={issues} onIssuePress={onIssuePress} />
         <SightingPinLayer sightings={sightings} onSightingPress={onSightingPress} />
