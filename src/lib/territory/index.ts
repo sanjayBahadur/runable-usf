@@ -1,0 +1,10 @@
+export { applyClaimToCells } from '@/src/lib/territory/applyClaim';
+export type { TerritoryCellScore } from '@/src/lib/territory/applyClaim';
+export { createClaimFromRun } from '@/src/lib/territory/claimBuilder';
+export type { TerritoryClaim } from '@/src/lib/territory/claimBuilder';
+export { calculateClaimScore } from '@/src/lib/territory/claimScore';
+export type { ClaimScoreInput } from '@/src/lib/territory/claimScore';
+export { resolveCellOwnership } from '@/src/lib/territory/ownership';
+export type { ResolvedCellOwnership } from '@/src/lib/territory/ownership';
+export { getActiveGamePeriod } from '@/src/lib/territory/periods';
+export type { GamePeriodName } from '@/src/lib/territory/periods';

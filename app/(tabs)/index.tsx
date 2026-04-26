@@ -5,27 +5,27 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CAMPUS_CONFIG, GRID_RULES, LOOP_RULES, POINTS } from '@/src/constants';
 import {
-  calculateDistanceMeters,
-  calculatePathDistanceMeters,
-  calculatePolygonAreaSquareMeters,
   detectClosedLoop,
   generateCampusGrid,
-  getCellsInsidePolygon,
-  isPathInsideCampus,
-  isPointInsidePolygon,
 } from '@/src/lib/geometry';
-import type { Coordinate } from '@/src/types';
+import {
+  applyClaimToCells,
+  createClaimFromRun,
+  getActiveGamePeriod,
+  resolveCellOwnership,
+} from '@/src/lib/territory';
+import type { Coordinate, RunSession } from '@/src/types';
 
 const moduleChecklist = [
-  'Pure TypeScript geometry helpers exported from src/lib/geometry/index.ts',
-  'Haversine distance and full path distance calculations added',
-  'Closed-loop detection validates distance, closure, point count, and area',
-  'Campus grid cells now include center coordinates and polygon corners',
-  'Cell selection filters grid cells by polygon containment',
-  'Expo Go screen renders live Module 01 geometry status',
+  'Pure TypeScript territory helpers exported from src/lib/territory/index.ts',
+  'Claim score now combines base points, distance, area, and capped pace bonus',
+  'Valid run sessions can be converted into scored territory claims',
+  'Claims apply only to cells whose centers fall inside the claim polygon',
+  'Ownership resolves by highest score while keeping runner-up overlap data',
+  'Expo Go screen renders a visible Module 02 overlap checklist and demo',
 ];
 
-const demoLoop: Coordinate[] = [
+const bullsLoop: Coordinate[] = [
   [28.0673, -82.4243],
   [28.0681, -82.4251],
   [28.0692, -82.4251],
@@ -37,14 +37,81 @@ const demoLoop: Coordinate[] = [
   [28.0673, -82.4243],
 ];
 
+const herdLoop: Coordinate[] = [
+  [28.068, -82.4244],
+  [28.0688, -82.425],
+  [28.0697, -82.4246],
+  [28.0703, -82.4236],
+  [28.0701, -82.4224],
+  [28.0692, -82.4218],
+  [28.0681, -82.422],
+  [28.0676, -82.423],
+  [28.068, -82.4244],
+];
+
 const campusGrid = generateCampusGrid(CAMPUS_CONFIG.boundary, GRID_RULES.cellSizeMeters);
-const loopResult = detectClosedLoop(demoLoop, LOOP_RULES);
-const selectedCells = getCellsInsidePolygon(campusGrid, demoLoop);
-const isDemoLoopInsideCampus = isPathInsideCampus(demoLoop, CAMPUS_CONFIG.boundary);
-const demoLoopDistanceMeters = calculatePathDistanceMeters(demoLoop);
-const demoLoopAreaSquareMeters = calculatePolygonAreaSquareMeters(demoLoop);
-const demoSpanMeters = calculateDistanceMeters(demoLoop[0], demoLoop[4]);
-const demoCenterInsideCampus = isPointInsidePolygon(CAMPUS_CONFIG.center, CAMPUS_CONFIG.boundary);
+const activePeriod = getActiveGamePeriod(new Date('2026-04-25T13:30:00.000Z'));
+
+const bullsRun: RunSession = {
+  id: 'run-bulls',
+  userId: 'user-bulls',
+  groupId: 'bulls',
+  path: bullsLoop.map((coordinate, index) => ({
+    coordinate,
+    recordedAt: new Date(Date.UTC(2026, 3, 25, 13, index)).toISOString(),
+  })),
+  startedAt: '2026-04-25T13:00:00.000Z',
+  endedAt: '2026-04-25T13:18:00.000Z',
+  distanceMeters: 0,
+  status: 'completed',
+};
+
+const herdRun: RunSession = {
+  id: 'run-herd',
+  userId: 'user-herd',
+  groupId: 'herd',
+  path: herdLoop.map((coordinate, index) => ({
+    coordinate,
+    recordedAt: new Date(Date.UTC(2026, 3, 25, 13, 30 + index)).toISOString(),
+  })),
+  startedAt: '2026-04-25T13:30:00.000Z',
+  endedAt: '2026-04-25T13:42:00.000Z',
+  distanceMeters: 0,
+  status: 'completed',
+};
+
+const bullsLoopResult = detectClosedLoop(bullsRun.path, LOOP_RULES);
+const herdLoopResult = detectClosedLoop(herdRun.path, LOOP_RULES);
+
+const bullsClaim = createClaimFromRun(bullsRun, bullsLoopResult, bullsRun.userId, bullsRun.groupId);
+const herdClaim = createClaimFromRun(herdRun, herdLoopResult, herdRun.userId, herdRun.groupId);
+
+const cellScoresAfterBulls = bullsClaim ? applyClaimToCells(bullsClaim, campusGrid, []) : [];
+const cellScoresAfterHerd =
+  bullsClaim && herdClaim
+    ? applyClaimToCells(herdClaim, campusGrid, cellScoresAfterBulls)
+    : cellScoresAfterBulls;
+
+const resolvedOwnership = resolveCellOwnership(cellScoresAfterHerd);
+const contestedCellIds = new Set(
+  cellScoresAfterHerd
+    .filter((cellScore) =>
+      cellScoresAfterHerd.some(
+        (otherScore) =>
+          otherScore.cellId === cellScore.cellId && otherScore.groupId !== cellScore.groupId,
+      ),
+    )
+    .map((cellScore) => cellScore.cellId),
+);
+const bullsOwnedCount = resolvedOwnership.filter((cell) => cell.groupId === 'bulls').length;
+const herdOwnedCount = resolvedOwnership.filter((cell) => cell.groupId === 'herd').length;
+const herdStolenCount = resolvedOwnership.filter(
+  (cell) => cell.groupId === 'herd' && cell.runnerUpGroupId === 'bulls',
+).length;
+const bullsUnaffectedCount = resolvedOwnership.filter(
+  (cell) => cell.groupId === 'bulls' && !contestedCellIds.has(cell.cellId),
+).length;
+const sampleOverlap = resolvedOwnership.find((cell) => cell.runnerUpGroupId);
 
 export default function HomeScreen() {
   return (
@@ -52,14 +119,14 @@ export default function HomeScreen() {
       headerBackgroundColor={{ light: '#D7F5E8', dark: '#123728' }}
       headerImage={<View style={styles.heroPanel} />}>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Module 01</ThemedText>
-        <ThemedText type="subtitle">Geometry Engine</ThemedText>
+        <ThemedText type="title">Module 02</ThemedText>
+        <ThemedText type="subtitle">Territory Engine</ThemedText>
       </ThemedView>
       <ThemedView style={styles.card}>
         <ThemedText type="defaultSemiBold">Visible completion status</ThemedText>
         <ThemedText>
-          Module 01 is now wired into the app with live geometry calculations, generated campus
-          cells, and a checklist rendered in Expo Go.
+          Module 02 is now wired into the app with claim scoring, overlap resolution, and a
+          territory checklist rendered in Expo Go.
         </ThemedText>
       </ThemedView>
 
@@ -73,32 +140,40 @@ export default function HomeScreen() {
       </ThemedView>
 
       <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">Live geometry snapshot</ThemedText>
+        <ThemedText type="subtitle">Live territory snapshot</ThemedText>
         <ThemedText>Campus: {CAMPUS_CONFIG.shortName}</ThemedText>
-        <ThemedText>Boundary points: {CAMPUS_CONFIG.boundary.length}</ThemedText>
         <ThemedText>Grid cell size: {GRID_RULES.cellSizeMeters}m</ThemedText>
         <ThemedText>Generated campus cells: {campusGrid.length}</ThemedText>
-        <ThemedText>Cells inside demo loop: {selectedCells.length}</ThemedText>
-        <ThemedText>Demo loop points: {demoLoop.length}</ThemedText>
-        <ThemedText>Demo path distance: {demoLoopDistanceMeters.toFixed(1)}m</ThemedText>
-        <ThemedText>Demo polygon area: {demoLoopAreaSquareMeters.toFixed(1)}m^2</ThemedText>
-        <ThemedText>Start-to-midpoint span: {demoSpanMeters.toFixed(1)}m</ThemedText>
-        <ThemedText>Closing distance: {loopResult.closingDistanceMeters.toFixed(1)}m</ThemedText>
-        <ThemedText>Path inside campus: {isDemoLoopInsideCampus ? 'yes' : 'no'}</ThemedText>
-        <ThemedText>Campus center inside boundary: {demoCenterInsideCampus ? 'yes' : 'no'}</ThemedText>
-        <ThemedText>Loop passes rules: {loopResult.passesRules ? 'yes' : 'no'}</ThemedText>
-        <ThemedText>Valid loop bonus: {POINTS.validLoopBonus} pts</ThemedText>
+        <ThemedText>Active period: {activePeriod.name}</ThemedText>
+        <ThemedText>Bulls loop valid: {bullsLoopResult.passesRules ? 'yes' : 'no'}</ThemedText>
+        <ThemedText>Herd loop valid: {herdLoopResult.passesRules ? 'yes' : 'no'}</ThemedText>
+        <ThemedText>Bulls claim score: {bullsClaim?.score.toFixed(1) ?? 'n/a'}</ThemedText>
+        <ThemedText>Herd claim score: {herdClaim?.score.toFixed(1) ?? 'n/a'}</ThemedText>
+        <ThemedText>Scored cell entries: {cellScoresAfterHerd.length}</ThemedText>
+        <ThemedText>Contested cells: {contestedCellIds.size}</ThemedText>
+        <ThemedText>Bulls owned cells: {bullsOwnedCount}</ThemedText>
+        <ThemedText>Herd owned cells: {herdOwnedCount}</ThemedText>
+        <ThemedText>Herd stolen cells: {herdStolenCount}</ThemedText>
+        <ThemedText>Bulls non-overlapped cells kept: {bullsUnaffectedCount}</ThemedText>
+        <ThemedText>Territory stolen reward: {POINTS.territoryStolen} pts</ThemedText>
       </ThemedView>
 
       <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">Where to inspect</ThemedText>
+        <ThemedText type="subtitle">Overlap result</ThemedText>
         <ThemedText>
-          `src/lib/geometry/index.ts` now provides the import surface for the geometry engine, and
-          the home tab uses those functions directly for the visible demo.
+          Overlaps resolve cell by cell. The higher score takes the contested cell for the active
+          period, while untouched cells stay with the earlier claim owner.
         </ThemedText>
+        {sampleOverlap ? (
+          <ThemedText>
+            Sample contested cell: {sampleOverlap.cellId} owned by {sampleOverlap.groupId} over{' '}
+            {sampleOverlap.runnerUpGroupId} at {sampleOverlap.score.toFixed(1)} vs{' '}
+            {sampleOverlap.runnerUpScore?.toFixed(1) ?? '0.0'}.
+          </ThemedText>
+        ) : null}
         <ThemedText>
-          Valid loop result: {loopResult.passesRules ? 'accepted' : 'rejected'} with{' '}
-          {loopResult.enclosedAreaSquareMeters.toFixed(1)}m^2 enclosed.
+          Inspect `src/lib/territory/index.ts` for the module surface and `applyClaimToCells` plus
+          `resolveCellOwnership` for the overlap flow.
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>

@@ -22,6 +22,7 @@ export type ClaimPolygon = {
 export type CellScore = {
   cellId: EntityId;
   groupId: EntityId;
+  periodId: EntityId;
   score: number;
   sourceClaimIds: EntityId[];
 };
@@ -29,6 +30,10 @@ export type CellScore = {
 export type CellOwnership = {
   cellId: EntityId;
   groupId: EntityId;
+  periodId: EntityId;
   score: number;
+  runnerUpGroupId?: EntityId;
+  runnerUpScore?: number;
+  sourceClaimIds?: EntityId[];
   updatedAt: ISODateString;
 };
