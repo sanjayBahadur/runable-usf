@@ -17,6 +17,7 @@ export type CompleteRunClaimResult = {
   invalidReasons: string[];
   claimCreated: boolean;
   claimedCellCount: number;
+  claimedCellIds: string[];
   pointsAwarded: number;
   updatedScores: CellScore[];
   updatedOwnership: CellOwnership[];
@@ -66,6 +67,7 @@ export function completeRunClaim({
       invalidReasons,
       claimCreated: false,
       claimedCellCount: 0,
+      claimedCellIds: [],
       pointsAwarded: 0,
       updatedScores: existingScores,
       updatedOwnership: resolveCellOwnership(existingScores),
@@ -74,12 +76,17 @@ export function completeRunClaim({
 
   const updatedScores = applyClaimToCells(claim, cells, existingScores);
   const updatedOwnership = resolveCellOwnership(updatedScores);
+  const claimedCellIds = updatedScores
+    .filter((entry) => entry.sourceClaimIds.includes(claim.id))
+    .map((entry) => entry.cellId);
+
   return {
     runSession: completedRun,
     loopResult,
     invalidReasons,
     claimCreated: true,
-    claimedCellCount: updatedScores.filter((entry) => entry.sourceClaimIds.includes(claim.id)).length,
+    claimedCellCount: claimedCellIds.length,
+    claimedCellIds,
     pointsAwarded:
       Math.round((loopResult.totalDistanceMeters / 100) * POINTS.runPer100Meters) +
       POINTS.validLoopBonus,

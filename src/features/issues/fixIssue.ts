@@ -1,10 +1,11 @@
 import { POINTS } from '@/src/constants';
-import type { CellOwnership, Coordinate, IssueReport } from '@/src/types';
+import type { CellOwnership, Coordinate, IssueReport, PhotoVerificationResult } from '@/src/types';
 
 export type FixIssueInput = {
   issue: IssueReport;
   fixedByUserId: string;
   afterPhotoUri?: string;
+  fixVerification?: PhotoVerificationResult;
   issueCoordinate?: Coordinate;
   ownership?: CellOwnership[];
   fixerGroupId?: string;
@@ -33,6 +34,7 @@ export function fixIssue(input: FixIssueInput): {
       status: 'fixed',
       fixedByUserId: input.fixedByUserId,
       afterPhotoUri: input.afterPhotoUri ?? 'demo://issue-after-new',
+      fixVerification: input.fixVerification,
       fixedAt: new Date().toISOString(),
     },
     pointsAwarded,

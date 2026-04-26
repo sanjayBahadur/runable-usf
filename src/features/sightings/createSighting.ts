@@ -1,4 +1,4 @@
-import type { Coordinate, Sighting, SightingCategory } from '@/src/types';
+import type { Coordinate, PhotoVerificationResult, Sighting, SightingCategory } from '@/src/types';
 
 type CreateSightingInput = {
   title: string;
@@ -7,6 +7,7 @@ type CreateSightingInput = {
   reportedByUserId: string;
   description?: string;
   photoUri?: string;
+  photoVerification?: PhotoVerificationResult;
 };
 
 export function createSighting(input: CreateSightingInput): Sighting {
@@ -18,6 +19,7 @@ export function createSighting(input: CreateSightingInput): Sighting {
     coordinate: input.coordinate,
     reportedByUserId: input.reportedByUserId,
     photoUri: input.photoUri,
+    photoVerification: input.photoVerification,
     createdAt: new Date().toISOString(),
   };
 }

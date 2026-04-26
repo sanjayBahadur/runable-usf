@@ -11,10 +11,42 @@ export type GroupRow = {
   total_points: number;
 };
 
+export type GroupMemberRow = {
+  user_id: string;
+  role: 'member' | 'executive';
+  display_name?: string;
+  username?: string;
+};
+
 export async function getGroups(): Promise<GroupRow[]> {
   if (!supabase) return [];
   const { data } = await supabase.from('groups').select('*').order('total_points', { ascending: false });
   return (data as GroupRow[]) ?? [];
+}
+
+export async function getGroupMembers(groupId: string): Promise<GroupMemberRow[]> {
+  if (!supabase) return [];
+
+  const { data } = await supabase
+    .from('group_memberships')
+    .select('user_id, role, profiles(display_name, username)')
+    .eq('group_id', groupId);
+
+  const rows = (data ?? []) as {
+    user_id: string;
+    role?: 'member' | 'executive';
+    profiles?: { display_name?: string; username?: string } | { display_name?: string; username?: string }[];
+  }[];
+
+  return rows.map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      user_id: row.user_id,
+      role: row.role ?? 'member',
+      display_name: profile?.display_name,
+      username: profile?.username,
+    };
+  });
 }
 
 export async function createGroup(group: {

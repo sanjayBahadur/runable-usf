@@ -23,13 +23,14 @@ import { ActionDock, type ActionDockItem, GlossyButton, XPWindow } from '@/src/c
 import { runDemoTerritoryScenario } from '@/src/demo';
 import { completeRunClaim, type CompleteRunClaimResult } from '@/src/features/runs';
 import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
+import { getCellArt, getCellOwnership, getGroups, insertFeedItem, saveCellOwnership, saveCellScores, saveRun } from '@/src/lib/supabase';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
 import { useSightings } from '@/src/hooks/useSightings';
 import { usePixelArt } from '@/src/hooks/usePixelArt';
 import { useRunTracker } from '@/src/hooks/useRunTracker';
 import { useAppStore } from '@/src/store/appStore';
-import type { Coordinate } from '@/src/types';
+import type { Coordinate, PhotoVerificationResult } from '@/src/types';
 
 const demoScenario = runDemoTerritoryScenario();
 const onCampusLocation = CAMPUS_CONFIG.center;
@@ -48,6 +49,8 @@ export default function HomeScreen() {
   // Derive user/group IDs: use auth if logged in, otherwise demo defaults
   const currentUserId = auth.user?.id ?? DEMO_USER_ID;
   const currentUserGroupId = auth.user?.homeGroupId ?? DEMO_GROUP_ID;
+  const userHasGroup = Boolean(auth.user?.homeGroupId);
+  const isAuthenticated = auth.isAuthenticated;
 
   // Guest mode = not authenticated (demo or preview)
   const isGuest = !auth.isAuthenticated;
@@ -58,6 +61,8 @@ export default function HomeScreen() {
   const [campusGateMessage, setCampusGateMessage] = useState<string | null>(null);
   const [territoryScores, setTerritoryScores] = useState(demoScenario.scores);
   const [territoryOwnership, setTerritoryOwnership] = useState(demoScenario.ownership);
+  const [mapGroups, setMapGroups] = useState(demoScenario.groups);
+  const [seededCellArt, setSeededCellArt] = useState([]);
   const [runSummary, setRunSummary] = useState<CompleteRunClaimResult | null>(null);
   const [showedInitialAuth, setShowedInitialAuth] = useState(false);
   const [simulatorActive, setSimulatorActive] = useState(false);
@@ -86,28 +91,85 @@ export default function HomeScreen() {
 
   // Auto-switch to campus mode if authenticated and on campus
   useEffect(() => {
-    if (auth.isAuthenticated && accessState === 'onCampus') {
+    if (auth.isAuthenticated) {
       setAppMode('campus');
     }
-  }, [auth.isAuthenticated, accessState, setAppMode]);
+  }, [auth.isAuthenticated, setAppMode]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTerritoryOwnership(demoScenario.ownership);
+      setMapGroups(demoScenario.groups);
+      setSeededCellArt([]);
+      return;
+    }
+
+    void getGroups().then((rows) =>
+      setMapGroups(
+        rows.map((g) => ({
+          id: g.id,
+          name: g.name,
+          slug: g.slug,
+          description: g.description ?? undefined,
+          primaryColor: g.primary_color,
+          accentColor: g.accent_color,
+          memberCount: g.member_count,
+          totalPoints: g.total_points,
+          createdAt: new Date().toISOString(),
+        })),
+      ),
+    );
+    void getCellOwnership().then((rows) =>
+      setTerritoryOwnership(
+        (rows as Record<string, unknown>[]).map((row) => ({
+          cellId: String(row.cell_id ?? ''),
+          groupId: String(row.group_id ?? ''),
+          periodId: String(row.period_id ?? ''),
+          score: Number(row.score ?? 0),
+          runnerUpGroupId: row.runner_up_group_id ? String(row.runner_up_group_id) : undefined,
+          runnerUpScore: row.runner_up_score ? Number(row.runner_up_score) : undefined,
+          sourceClaimIds: Array.isArray(row.source_claim_ids) ? (row.source_claim_ids as string[]) : [],
+          updatedAt: String(row.updated_at ?? new Date().toISOString()),
+        })),
+      ),
+    );
+    void getCellArt().then((rows) =>
+      setSeededCellArt(
+        (rows as Record<string, unknown>[]).map((row) => ({
+          cellId: String(row.cell_id ?? ''),
+          groupId: String(row.group_id ?? ''),
+          color: String(row.color ?? '#334155'),
+          leftCard: row.left_card ? String(row.left_card) : undefined,
+          rightCard: row.right_card ? String(row.right_card) : undefined,
+          patternId: row.pattern_id ? String(row.pattern_id) : undefined,
+          updatedByUserId: String(row.updated_by_user_id ?? ''),
+          updatedAt: String(row.updated_at ?? new Date().toISOString()),
+        })),
+      ),
+    );
+  }, [isAuthenticated]);
 
   const { issues, reportIssue, markIssueFixed } = useIssueReports({
-    initialIssues: demoScenario.issues,
+    initialIssues: isAuthenticated ? [] : demoScenario.issues,
     currentUserId,
     currentUserGroupId,
+    enabled: isAuthenticated,
   });
   const { sightings, addSighting } = useSightings({
-    initialSightings: demoScenario.sightings,
+    initialSightings: isAuthenticated ? [] : demoScenario.sightings,
     currentUserId,
+    enabled: isAuthenticated,
   });
   const runTracker = useRunTracker({
     userId: currentUserId,
     groupId: currentUserGroupId,
   });
-  const { selectedColor, setSelectedColor, visibleCellArt, paintCell } = usePixelArt({
-    userGroupId: currentUserGroupId,
+  const { visibleCellArt } = usePixelArt({
+    userGroupId: userHasGroup ? currentUserGroupId : undefined,
+    userGroupRole: auth.user?.groupRole,
     userId: currentUserId,
     ownership: territoryOwnership,
+    initialArt: seededCellArt,
   });
 
   const selectedIssue = useMemo(
@@ -149,7 +211,13 @@ export default function HomeScreen() {
   }
 
   function handleCellPress(cellId: string) {
-    showSelection(`Selected cell ${cellId}.`);
+    const entry = territoryOwnership.find((item) => item.cellId === cellId);
+    if (!entry) {
+      showSelection(`Cell ${cellId} is currently unclaimed.`);
+      return;
+    }
+    const owner = mapGroups.find((group) => group.id === entry.groupId)?.name ?? entry.groupId;
+    showSelection(`Cell ${cellId} is owned by ${owner} (score ${Math.round(entry.score)}).`);
   }
 
   function handleIssuePress(issueId: string) {
@@ -204,8 +272,8 @@ export default function HomeScreen() {
     showSelection(`Sighting registered: "${newSighting.title}".`);
   }
 
-  function handleFixIssue(issueId: string, afterPhotoUri?: string) {
-    const result = markIssueFixed(issueId, afterPhotoUri);
+  function handleFixIssue(issueId: string, afterPhotoUri?: string, fixVerification?: PhotoVerificationResult) {
+    const result = markIssueFixed(issueId, afterPhotoUri, fixVerification);
     if (!result) return;
 
     setSelectedIssueId(result.issue.id);
@@ -317,6 +385,65 @@ export default function HomeScreen() {
     if (result.claimCreated) {
       setTerritoryScores(result.updatedScores);
       setTerritoryOwnership(result.updatedOwnership);
+
+      void saveRun({
+        user_id: result.runSession.userId,
+        group_id: result.runSession.groupId,
+        path: result.runSession.path,
+        distance_meters: result.runSession.distanceMeters,
+        started_at: result.runSession.startedAt,
+        ended_at: result.runSession.endedAt ?? null,
+        status: result.runSession.status,
+        loop_result: result.loopResult,
+      });
+      void saveCellScores(
+        result.updatedScores.map((score) => ({
+          cell_id: score.cellId,
+          group_id: score.groupId,
+          period_id: score.periodId,
+          score: score.score,
+          source_claim_ids: score.sourceClaimIds,
+        })),
+      );
+      void saveCellOwnership(
+        result.updatedOwnership.map((entry) => ({
+          cell_id: entry.cellId,
+          group_id: entry.groupId,
+          period_id: entry.periodId,
+          score: entry.score,
+          runner_up_group_id: entry.runnerUpGroupId,
+          runner_up_score: entry.runnerUpScore,
+          source_claim_ids: entry.sourceClaimIds,
+          updated_at: entry.updatedAt,
+        })),
+      );
+      void insertFeedItem({
+        type: 'territory_claimed',
+        actor_user_id: result.runSession.userId,
+        group_id: result.runSession.groupId,
+        title: 'Territory claimed',
+        body: `${currentGroupName} completed a loop and captured ${result.claimedCellCount} cells.`,
+        related_entity_id: result.runSession.id,
+        visibility_scope: 'group',
+        target_group_id: result.runSession.groupId,
+        created_at: new Date().toISOString(),
+      });
+      void Promise.all(
+        result.claimedCellIds.map((cellId) =>
+          insertFeedItem({
+            type: 'territory_claimed',
+            actor_user_id: result.runSession.userId,
+            group_id: result.runSession.groupId,
+            title: 'Tile captured',
+            body: `${currentGroupName} captured ${cellId} from a completed lap.`,
+            related_entity_id: cellId,
+            visibility_scope: 'group',
+            target_group_id: result.runSession.groupId,
+            created_at: new Date().toISOString(),
+          }),
+        ),
+      );
+
       showSelection(
         `Valid loop. Claimed ${result.claimedCellCount} cells for ${currentGroupName} and earned ${result.pointsAwarded} pts.`,
       );
@@ -410,7 +537,7 @@ export default function HomeScreen() {
             ownership={territoryOwnership}
             issues={openIssues}
             sightings={sightings}
-            groups={demoScenario.groups}
+            groups={mapGroups}
             simulatorActive={simulatorActive}
             onToggleSimulator={toggleSimulatorMode}
             onCellPress={handleCellPress}

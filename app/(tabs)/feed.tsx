@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,11 +17,12 @@ import { RunableCard, StatTile, XPWindow } from '@/src/components/ui';
 import { demoGroups } from '@/src/demo';
 import { buildDemoFeedEvents, getDemoUserNames, getVisibleFeedItems } from '@/src/lib/feed';
 import { buildDemoLeaderboards } from '@/src/lib/leaderboard';
-
-const currentGroupId = 'group-bulls';
-const currentUserId = 'user-bulls-demo';
+import { getScopedFeedItems } from '@/src/lib/supabase';
+import { useAuth } from '@/src/hooks/useAuth';
+import type { FeedItem } from '@/src/types';
 
 export default function FeedScreen() {
+  const auth = useAuth();
   const [activeTab, setActiveTab] = useState<'feed' | 'leaderboards'>('feed');
   const [activeLeaderboard, setActiveLeaderboard] = useState<LeaderboardTabKey>('topGroups');
   const [likes, setLikes] = useState<Record<string, number>>({});
@@ -32,6 +33,15 @@ export default function FeedScreen() {
 
   const userNames = useMemo(() => getDemoUserNames(demoGroups), []);
   const feedItems = useMemo(() => getVisibleFeedItems(buildDemoFeedEvents()), []);
+  const [globalFeedItems, setGlobalFeedItems] = useState<FeedItem[]>([]);
+  const currentGroupId = auth.user?.homeGroupId ?? 'group-bulls';
+  const currentUserId = auth.user?.id ?? 'user-bulls-demo';
+
+  useEffect(() => {
+    void getScopedFeedItems({ scope: 'global', currentGroupId }).then((rows) => setGlobalFeedItems(rows));
+  }, [currentGroupId]);
+
+  const visibleGlobalFeed = globalFeedItems.length > 0 ? globalFeedItems : feedItems;
   const leaderboards = useMemo(() => buildDemoLeaderboards(feedItems, userNames), [feedItems, userNames]);
 
   function toggleLike(feedItemId: string) {
@@ -80,7 +90,7 @@ export default function FeedScreen() {
 
           {activeTab === 'feed' ? (
             <View style={styles.section}>
-              {feedItems.map((item) => (
+              {visibleGlobalFeed.map((item) => (
                 <FeedItemCard
                   key={item.id}
                   item={item}

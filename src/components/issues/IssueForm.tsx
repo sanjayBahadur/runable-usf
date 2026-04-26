@@ -7,7 +7,9 @@ import { ThemedText } from '@/components/themed-text';
 import { uploadImage } from '@/src/lib/supabase/storageService';
 import { ISSUE_CATEGORIES, IssueCategoryPicker } from '@/src/components/issues/IssueCategoryPicker';
 import { GlossyButton } from '@/src/components/ui';
-import type { Coordinate, IssueCategory } from '@/src/types';
+import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
+import { verifyPhoto } from '@/src/lib/ai';
+import type { Coordinate, IssueCategory, PhotoVerificationResult } from '@/src/types';
 
 type IssueFormProps = {
   coordinate: Coordinate;
@@ -18,6 +20,7 @@ type IssueFormProps = {
     description?: string;
     coordinate: Coordinate;
     photoUri?: string;
+    photoVerification?: PhotoVerificationResult;
   }) => void;
 };
 
@@ -26,6 +29,7 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
   const [category, setCategory] = useState<IssueCategory>(ISSUE_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
 
   async function pickImage() {
@@ -48,13 +52,23 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
       if (uploaded) finalPhotoUri = uploaded;
     }
 
+    const photoVerification = finalPhotoUri
+      ? await verifyPhoto({
+          imageUri: finalPhotoUri,
+          selectedCategory: category,
+          context: 'issue',
+        })
+      : undefined;
+
     onSubmit({
       title,
       category,
       description,
       coordinate,
       photoUri: finalPhotoUri || 'demo://issue-before-form',
+      photoVerification,
     });
+    setVerification(photoVerification);
     setTitle('New campus issue');
     setCategory(ISSUE_CATEGORIES[0]);
     setDescription('');
@@ -88,6 +102,8 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
           </View>
         )}
       </Pressable>
+      <VerificationBadge verification={verification} />
+      <VerificationWarning verification={verification} />
 
       <ThemedText style={styles.coordText}>
         Report coordinate: {coordinate[0].toFixed(4)}, {coordinate[1].toFixed(4)}

@@ -3,48 +3,38 @@ import { useEffect, useState } from 'react';
 import { createIssueReport } from '@/src/features/issues/createIssueReport';
 import { fixIssue } from '@/src/features/issues/fixIssue';
 import { createIssue, getIssues, updateIssue } from '@/src/lib/supabase/issueService';
-import type { Coordinate, IssueCategory, IssueReport } from '@/src/types';
+import type { Coordinate, IssueCategory, IssueReport, PhotoVerificationResult } from '@/src/types';
 
 type UseIssueReportsOptions = {
   initialIssues: IssueReport[];
   currentUserId: string;
   currentUserGroupId: string;
+  enabled?: boolean;
 };
 
 export function useIssueReports({
   initialIssues,
   currentUserId,
   currentUserGroupId,
+  enabled = true,
 }: UseIssueReportsOptions) {
   const [issues, setIssues] = useState<IssueReport[]>(initialIssues);
 
   useEffect(() => {
+    if (!enabled) {
+      setIssues(initialIssues);
+      return;
+    }
     async function load() {
       try {
         const data = await getIssues();
-        if (data && data.length > 0) {
-          const mapped: IssueReport[] = data.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            category: d.category,
-            description: d.description,
-            coordinate: d.coordinate,
-            status: d.status,
-            reportedByUserId: d.reported_by_user_id,
-            fixedByUserId: d.fixed_by_user_id,
-            photoUri: d.photo_uri,
-            afterPhotoUri: d.after_photo_uri,
-            createdAt: d.created_at,
-            fixedAt: d.fixed_at,
-          }));
-          setIssues(mapped);
-        }
+        setIssues(data);
       } catch (err) {
         console.warn('Failed to load real issues, using demo', err);
       }
     }
-    load();
-  }, []);
+    void load();
+  }, [enabled, initialIssues]);
 
   function reportIssue(input: {
     title: string;
@@ -52,6 +42,7 @@ export function useIssueReports({
     description?: string;
     coordinate: Coordinate;
     photoUri?: string;
+    photoVerification?: PhotoVerificationResult;
   }) {
     const { issue, pointsAwarded } = createIssueReport({
       ...input,
@@ -60,8 +51,11 @@ export function useIssueReports({
 
     setIssues((existing) => [issue, ...existing]);
 
+    if (!enabled) {
+      return { issue, pointsAwarded };
+    }
+
     createIssue({
-      id: issue.id,
       title: issue.title,
       category: issue.category,
       description: issue.description,
@@ -70,12 +64,21 @@ export function useIssueReports({
       reported_by_user_id: issue.reportedByUserId,
       photo_uri: issue.photoUri,
       created_at: issue.createdAt,
+    }).then((persistedId) => {
+      if (!persistedId) return;
+      setIssues((existing) => existing.map((entry) => (
+        entry.id === issue.id ? { ...entry, id: persistedId } : entry
+      )));
     }).catch((e) => console.error("Failed to commit issue up to Supabase", e));
 
     return { issue, pointsAwarded };
   }
 
-  function markIssueFixed(issueId: string, afterPhotoUri?: string) {
+  function markIssueFixed(
+    issueId: string,
+    afterPhotoUri?: string,
+    fixVerification?: PhotoVerificationResult,
+  ) {
     const issue = issues.find((entry) => entry.id === issueId);
     if (!issue || issue.status === 'fixed') {
       return null;
@@ -87,16 +90,21 @@ export function useIssueReports({
       fixerGroupId: currentUserGroupId,
       issueCoordinate: issue.coordinate,
       afterPhotoUri,
+      fixVerification,
     });
 
     setIssues((existing) =>
       existing.map((entry) => (entry.id === issueId ? result.issue : entry)),
     );
 
+    if (!enabled) {
+      return result;
+    }
+
     updateIssue(issueId, {
       status: 'fixed',
       fixed_by_user_id: currentUserId,
-      after_photo_uri: afterPhotoUri,
+      after_photo_path: afterPhotoUri,
       fixed_at: result.issue.fixedAt,
     }).catch(e => console.error("Failed to update issue on Supabase", e));
 

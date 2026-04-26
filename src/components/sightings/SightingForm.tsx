@@ -3,11 +3,13 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 
-import { SIGHTING_CATEGORIES, SightingCategoryPicker } from '@/src/components/sightings/SightingCategoryPicker';
+import { SightingCategoryPicker } from '@/src/components/sightings/SightingCategoryPicker';
 import { uploadImage } from '@/src/lib/supabase/storageService';
 import { GlossyButton } from '@/src/components/ui';
 import { RUNABLE_THEME } from '@/src/constants/theme';
-import type { Coordinate, SightingCategory } from '@/src/types';
+import { verifyPhoto } from '@/src/lib/ai';
+import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
+import type { Coordinate, PhotoVerificationResult, SightingCategory } from '@/src/types';
 import { ThemedText } from '@/components/themed-text';
 
 type SightingFormProps = {
@@ -18,6 +20,7 @@ type SightingFormProps = {
     category: SightingCategory;
     coordinate: Coordinate;
     photoUri?: string;
+    photoVerification?: PhotoVerificationResult;
   }) => void;
   onCancel: () => void;
 };
@@ -27,6 +30,7 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<SightingCategory>('animal');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
 
   const isValid = title.trim().length > 0;
@@ -53,7 +57,23 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
       if (uploaded) finalPhotoUri = uploaded;
     }
 
-    onSubmit({ title, description, category, coordinate, photoUri: finalPhotoUri ?? undefined });
+    const photoVerification = finalPhotoUri
+      ? await verifyPhoto({
+          imageUri: finalPhotoUri,
+          selectedCategory: category,
+          context: category === 'landmark' ? 'landmark' : 'sighting',
+        })
+      : undefined;
+
+    onSubmit({
+      title,
+      description,
+      category,
+      coordinate,
+      photoUri: finalPhotoUri ?? undefined,
+      photoVerification,
+    });
+    setVerification(photoVerification);
     setIsUploading(false);
   }
 
@@ -96,6 +116,8 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
           </View>
         )}
       </Pressable>
+      <VerificationBadge verification={verification} />
+      <VerificationWarning verification={verification} />
 
       <View style={styles.actionRow}>
         <GlossyButton label="Cancel" onPress={onCancel} tone="secondary" disabled={isUploading} />

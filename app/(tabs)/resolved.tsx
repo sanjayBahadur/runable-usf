@@ -13,15 +13,16 @@ import { useIssueReports } from '@/src/hooks/useIssueReports';
 import { RUNABLE_THEME } from '@/src/constants/theme';
 
 export default function ResolvedIssuesScreen() {
-  const { user, group } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
 
   const demoScenario = runDemoTerritoryScenario();
   
   const { issues } = useIssueReports({
-    initialIssues: demoScenario.issues,
+    initialIssues: isAuthenticated ? [] : demoScenario.issues,
     currentUserId: user?.id ?? 'guest',
-    currentUserGroupId: group?.id ?? 'spectator',
+    currentUserGroupId: user?.homeGroupId ?? 'spectator',
+    enabled: isAuthenticated,
   });
 
   const resolvedIssues = useMemo(() => {

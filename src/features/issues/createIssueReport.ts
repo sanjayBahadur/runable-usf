@@ -1,5 +1,5 @@
 import { POINTS } from '@/src/constants';
-import type { Coordinate, IssueCategory, IssueReport } from '@/src/types';
+import type { Coordinate, IssueCategory, IssueReport, PhotoVerificationResult } from '@/src/types';
 
 export type CreateIssueReportInput = {
   title: string;
@@ -8,6 +8,7 @@ export type CreateIssueReportInput = {
   coordinate: Coordinate;
   reportedByUserId: string;
   photoUri?: string;
+  photoVerification?: PhotoVerificationResult;
 };
 
 export function createIssueReport(input: CreateIssueReportInput): {
@@ -23,6 +24,7 @@ export function createIssueReport(input: CreateIssueReportInput): {
     status: 'open',
     reportedByUserId: input.reportedByUserId,
     photoUri: input.photoUri ?? 'demo://issue-before-new',
+    photoVerification: input.photoVerification,
     createdAt: new Date().toISOString(),
   };
 

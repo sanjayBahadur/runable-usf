@@ -4,6 +4,9 @@ export async function saveCellArt(cellArt: {
   cell_id: string;
   group_id: string;
   color: string;
+  left_card?: string;
+  right_card?: string;
+  pattern_id?: string;
   updated_by_user_id: string;
 }): Promise<boolean> {
   if (!supabase) return false;

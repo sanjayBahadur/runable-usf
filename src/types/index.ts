@@ -1,4 +1,5 @@
 export type { Coordinate, EntityId, EntityStatus, ISODateString } from '@/src/types/common';
+export type { PhotoVerificationResult, PhotoVerificationStatus } from '@/src/types/ai';
 export type { UserProfile } from '@/src/types/user';
 export type { Group } from '@/src/types/group';
 export type { ClosedLoopResult, RunPoint, RunSession } from '@/src/types/run';
@@ -8,4 +9,5 @@ export type { Sighting, SightingCategory } from '@/src/types/sighting';
 export type { FeedItem, FeedItemType } from '@/src/types/feed';
 export type { CellArt } from '@/src/types/art';
 export type { LeaderboardEntry, LeaderboardScope } from '@/src/types/leaderboard';
+export type { ArchiveSnapshot, GameCycle, PeriodName } from '@/src/types/archive';
 export type { GamePeriod } from '@/src/types/period';

@@ -8,6 +8,29 @@ export function canPaintCell(userGroupId: string, cellOwnership?: CellOwnership)
   return cellOwnership.groupId === userGroupId;
 }
 
+export function canCustomizeCell(input: {
+  userId: string;
+  userGroupId?: string;
+  userGroupRole?: 'member' | 'executive';
+  ownership?: CellOwnership;
+}): boolean {
+  const { userId, userGroupId, userGroupRole, ownership } = input;
+  if (!ownership) return false;
+
+  const contested = Boolean((ownership.runnerUpScore ?? 0) > 0);
+  const fromCompletedLap = Boolean(ownership.sourceClaimIds?.length);
+  if (!fromCompletedLap) return false;
+
+  if (userGroupId) {
+    // Clan-controlled customization is executive-only.
+    if (ownership.groupId !== userGroupId) return false;
+    return userGroupRole === 'executive';
+  }
+
+  // Solo players can only customize uncontested tiles they directly own.
+  return ownership.groupId === userId && !contested;
+}
+
 export function applyCellPaint(
   cellId: string,
   groupId: string,

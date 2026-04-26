@@ -12,19 +12,24 @@ export async function uploadImage(
   if (!supabase) return null;
 
   try {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) return null;
+
     const response = await fetch(localUri);
     const blob = await response.blob();
+    const finalPath = `${userId}/${storagePath}`;
 
     const { error } = await supabase.storage
       .from(bucket)
-      .upload(storagePath, blob, {
+      .upload(finalPath, blob, {
         contentType: blob.type || 'image/jpeg',
         upsert: true,
       });
 
     if (error) return null;
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(finalPath);
     return data.publicUrl;
   } catch {
     return null;

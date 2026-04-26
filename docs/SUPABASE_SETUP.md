@@ -133,7 +133,7 @@ This repo already has the `supabase/migrations` folder, so do not overwrite the 
 ### 5. Link the repo to your project
 
 ```bash
-npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase link --project-ref lpnwlxojlwgauzrbexgb
 ```
 
 You will be prompted for the database password from project creation.

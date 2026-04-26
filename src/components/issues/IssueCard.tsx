@@ -1,15 +1,20 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { VerificationBadge } from '@/src/components/ai';
 import { BeforeAfterViewer } from '@/src/components/issues/BeforeAfterViewer';
 import { FixIssueForm } from '@/src/components/issues/FixIssueForm';
 import { PixelChip } from '@/src/components/ui';
 import { RUNABLE_THEME } from '@/src/constants/theme';
-import type { IssueReport } from '@/src/types';
+import type { IssueReport, PhotoVerificationResult } from '@/src/types';
 
 type IssueCardProps = {
   issue: IssueReport;
-  onFixIssue?: (issueId: string, afterPhotoUri?: string) => void;
+  onFixIssue?: (
+    issueId: string,
+    afterPhotoUri?: string,
+    fixVerification?: PhotoVerificationResult,
+  ) => void;
 };
 
 export function IssueCard({ issue, onFixIssue }: IssueCardProps) {
@@ -21,6 +26,8 @@ export function IssueCard({ issue, onFixIssue }: IssueCardProps) {
       </View>
       <View style={styles.metaRow}>
         <PixelChip label={issue.category} tone="neutral" />
+        <VerificationBadge verification={issue.photoVerification} />
+        {issue.status === 'fixed' ? <VerificationBadge verification={issue.fixVerification} /> : null}
       </View>
       {issue.description ? <ThemedText>{issue.description}</ThemedText> : null}
       <BeforeAfterViewer issue={issue} />

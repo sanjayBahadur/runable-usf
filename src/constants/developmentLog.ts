@@ -160,4 +160,16 @@ export const DEVELOPMENT_LOG = [
       'Map engine now distinctly handles interactive intentions like reporting vs sightseeing',
     ],
   },
+  {
+    module: 'Module 11',
+    title: 'Game Periods & Archives',
+    checklist: [
+      'Active game periods determined from local 6-hour interval logic (Dawn, Day, Dusk, Night)',
+      'Asynchronous snapshot architecture clones ownership, art, and metrics into historical archives',
+      'Finalization orchestration validates winners from the leaderboard at resolution time',
+      'Archive cards visualize historical control, trophy banners, and dominance metrics',
+      'Manual MVP toggles in Development Log enable on-demand snapshot creation for demos',
+      'Snapshots persist in local UI state without requiring complex cron or backend workers',
+    ],
+  },
 ] as const;

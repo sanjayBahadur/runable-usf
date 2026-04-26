@@ -16,6 +16,8 @@ export type FeedItem = {
   groupId?: EntityId;
   title: string;
   body: string;
+  visibilityScope?: 'global' | 'group';
+  targetGroupId?: EntityId;
   relatedEntityId?: EntityId;
   createdAt: ISODateString;
 };

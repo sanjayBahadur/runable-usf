@@ -2,39 +2,32 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { createSighting as generateSighting } from '@/src/features/sightings';
 import { createSighting, getSightings } from '@/src/lib/supabase/sightingService';
-import type { Sighting, SightingCategory } from '@/src/types';
+import type { PhotoVerificationResult, Sighting, SightingCategory } from '@/src/types';
 
 type UseSightingsOptions = {
   initialSightings?: Sighting[];
   currentUserId: string;
+  enabled?: boolean;
 };
 
-export function useSightings({ initialSightings = [], currentUserId }: UseSightingsOptions) {
+export function useSightings({ initialSightings = [], currentUserId, enabled = true }: UseSightingsOptions) {
   const [sightings, setSightings] = useState<Sighting[]>(initialSightings);
 
   useEffect(() => {
+    if (!enabled) {
+      setSightings(initialSightings);
+      return;
+    }
     async function load() {
       try {
         const data = await getSightings();
-        if (data && data.length > 0) {
-          const mapped: Sighting[] = data.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            description: d.description,
-            category: d.category,
-            coordinate: d.coordinate,
-            reportedByUserId: d.reported_by_user_id,
-            photoUri: d.photo_uri,
-            createdAt: d.created_at,
-          }));
-          setSightings(mapped);
-        }
+        setSightings(data);
       } catch (err) {
         console.warn('Failed to load realtime sightings', err);
       }
     }
-    load();
-  }, []);
+    void load();
+  }, [enabled, initialSightings]);
 
   const addSighting = useCallback(
     (input: {
@@ -43,6 +36,7 @@ export function useSightings({ initialSightings = [], currentUserId }: UseSighti
       coordinate: [number, number];
       description?: string;
       photoUri?: string;
+      photoVerification?: PhotoVerificationResult;
     }) => {
       const newSighting = generateSighting({
         ...input,
@@ -51,8 +45,11 @@ export function useSightings({ initialSightings = [], currentUserId }: UseSighti
 
       setSightings((prev) => [newSighting, ...prev]);
 
+      if (!enabled) {
+        return newSighting;
+      }
+
       createSighting({
-        id: newSighting.id,
         title: newSighting.title,
         description: newSighting.description,
         category: newSighting.category,
@@ -60,11 +57,16 @@ export function useSightings({ initialSightings = [], currentUserId }: UseSighti
         reported_by_user_id: newSighting.reportedByUserId,
         photo_uri: newSighting.photoUri,
         created_at: newSighting.createdAt,
+      }).then((persistedId) => {
+        if (!persistedId) return;
+        setSightings((existing) => existing.map((entry) => (
+          entry.id === newSighting.id ? { ...entry, id: persistedId } : entry
+        )));
       }).catch(e => console.error("Failed to commit sighting to Supabase", e));
 
       return newSighting;
     },
-    [currentUserId],
+    [currentUserId, enabled],
   );
 
   return {

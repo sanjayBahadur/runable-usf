@@ -7,8 +7,39 @@ import { AppShell } from '@/src/components/layout';
 import { RunableCard, XPWindow } from '@/src/components/ui';
 import { RUNABLE_THEME } from '@/src/constants/theme';
 import { DEVELOPMENT_LOG } from '@/src/constants';
+import { useArchives } from '@/src/hooks/useArchives';
+import { ArchiveCard } from '@/src/components/archive';
+import { GlossyButton } from '@/src/components/ui';
+import { runDemoTerritoryScenario } from '@/src/demo';
+import { getActivePeriod } from '@/src/lib/periods';
 
 export default function DevelopmentLogScreen() {
+  const { archives, createArchive } = useArchives();
+  const demoScenario = runDemoTerritoryScenario();
+
+  function handleFinalize(cycle: any) {
+    // Map demoScenario.ownership (CellOwnership[]) to Record<string, string>
+    const ownershipRecord: Record<string, string> = {};
+    demoScenario.ownership.forEach(o => {
+      ownershipRecord[o.cellId] = o.groupId;
+    });
+
+    createArchive(
+      cycle,
+      demoScenario.groups.map(g => ({
+        entityId: g.id,
+        entityType: 'group',
+        displayName: g.name,
+        points: demoScenario.scores.filter(s => s.groupId === g.id).reduce((sum, s) => sum + s.score, 0),
+        rank: 1,
+      })),
+      ownershipRecord,
+      {}, // Art snapshot empty for MVP demo
+      demoScenario.issues.length,
+      demoScenario.sightings.length
+    );
+  }
+
   return (
     <AppShell>
       <SafeAreaView style={styles.screen} edges={['top']}>
@@ -38,6 +69,45 @@ export default function DevelopmentLogScreen() {
               ))}
             </RunableCard>
           ))}
+
+          <XPWindow title="MVP Archive Controls" icon="⚙️">
+            <ThemedText style={{ marginBottom: RUNABLE_THEME.spacing.sm }}>
+              Current Period: <ThemedText type="defaultSemiBold">{getActivePeriod()}</ThemedText>
+            </ThemedText>
+            <View style={styles.buttonCol}>
+              <GlossyButton 
+                label="Finalize Current Period" 
+                onPress={() => handleFinalize('Period')} 
+                tone="primary" 
+              />
+              <GlossyButton 
+                label="Finalize Daily Cycle" 
+                onPress={() => handleFinalize('Daily')} 
+                tone="dark" 
+              />
+              <GlossyButton 
+                label="Finalize Weekly Cycle" 
+                onPress={() => handleFinalize('Weekly')} 
+                tone="dark" 
+              />
+            </View>
+          </XPWindow>
+
+          {archives.length > 0 && (
+            <View style={{ gap: RUNABLE_THEME.spacing.md }}>
+              <ThemedText type="subtitle">Snapshot History</ThemedText>
+              {archives.map((snapshot) => {
+                const group = demoScenario.groups.find(g => g.id === snapshot.winnerGroupId);
+                return (
+                  <ArchiveCard 
+                    key={snapshot.id} 
+                    snapshot={snapshot} 
+                    groupName={group?.name || 'Unknown Group'} 
+                  />
+                );
+              })}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </AppShell>
@@ -92,8 +162,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   checkText: {
-    flex: 1,
     fontSize: RUNABLE_THEME.fontSizes.sm,
     lineHeight: 20,
+  },
+  buttonCol: {
+    gap: RUNABLE_THEME.spacing.sm,
   },
 });

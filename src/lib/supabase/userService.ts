@@ -6,6 +6,7 @@ export type ProfileRow = {
   display_name: string;
   avatar_url: string | null;
   home_group_id: string | null;
+  group_role: 'member' | 'executive' | null;
   points: number;
 };
 

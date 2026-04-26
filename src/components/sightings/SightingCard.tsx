@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { VerificationBadge } from '@/src/components/ai';
 import { PixelChip } from '@/src/components/ui';
 import { SIGHTING_CATEGORIES } from '@/src/components/sightings/SightingCategoryPicker';
 import { RUNABLE_THEME } from '@/src/constants/theme';
@@ -26,6 +27,7 @@ export function SightingCard({ sighting }: SightingCardProps) {
       <ThemedText style={styles.meta}>
         Reported on {new Date(sighting.createdAt).toLocaleString()}
       </ThemedText>
+      <VerificationBadge verification={sighting.photoVerification} />
 
       {sighting.description && (
         <View style={styles.bodyWrap}>

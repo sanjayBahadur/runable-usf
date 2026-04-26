@@ -19,6 +19,10 @@ function profileFromRow(row: Record<string, unknown>): UserProfile {
     displayName: String(row.display_name ?? ''),
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
     homeGroupId: row.home_group_id ? String(row.home_group_id) : undefined,
+    groupRole:
+      row.group_role === 'executive' || row.group_role === 'member'
+        ? row.group_role
+        : undefined,
     points: Number(row.points ?? 0),
     createdAt: String(row.created_at ?? new Date().toISOString()),
   };
