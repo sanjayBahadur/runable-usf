@@ -83,4 +83,16 @@ export const DEVELOPMENT_LOG = [
       'Development Log tab documents Module 00 through Module 06 checklists',
     ],
   },
+  {
+    module: 'Module 07',
+    title: 'Leaderboards & Feed',
+    checklist: [
+      'Feed events are built locally from demo runs, claims, issues, sightings, art, and landmarks',
+      'Feed items support local likes and local comments without realtime or backend state',
+      'Leaderboards rank top groups, top users, issues fixed, cells owned, and sightings added',
+      'Current demo group and user can be highlighted in leaderboard rows',
+      'A dedicated Feed tab shows activity and leaderboard views',
+      'Development Log now documents Modules 00 through 07',
+    ],
+  },
 ] as const;

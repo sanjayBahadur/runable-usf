@@ -74,3 +74,7 @@ After implementation:
 summarize files created/changed
 explain how fallback mode works
 explain where API integration can be added later
+
+
+
+

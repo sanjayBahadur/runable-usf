@@ -28,19 +28,26 @@ Build modularly and minimally.
 
 The correct module order is:
 
-1. Module 00 — Shared Types & Constants
-2. Module 01 — Geometry Engine
-3. Module 02 — Territory Engine
-4. Module 03 — Demo Mode
-5. Module 04 — Map Rendering
-6. Module 05 — Pixel Art Layer
-7. Module 06 — Issues: Reporting & Fixing
-8. Module 07 — Leaderboards & Feed
-9. Module 08 — Supabase & Auth Integration
-10. Module 09 — Real Run Tracking
-11. Module 10 — Sightings & Landmarks
-12. Module 11 — Game Periods & Archives
-13. Module 12 — Optional AI Photo Verification
+00 Types/Constants
+01 Geometry Engine
+02 Territory Engine
+03 Demo Mode
+04 Map Rendering
+
+13 Campus Access & Viewport UX
+14 Design System & App Shell
+
+05 Pixel Art
+06 Issues
+07 Leaderboards & Feed
+
+09 Real Run Tracking
+08 Supabase/Auth
+10 Sightings/Landmarks
+11 Periods/Archives
+
+15 Motion Polish
+12 AI Photo Verification
 
 Do not skip ahead unless explicitly instructed.
 

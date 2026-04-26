@@ -6,6 +6,7 @@ export type FeedItemType =
   | 'issue_reported'
   | 'issue_fixed'
   | 'sighting_added'
+  | 'landmark_named'
   | 'art_updated';
 
 export type FeedItem = {
