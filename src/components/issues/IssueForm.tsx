@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { uploadImage } from '@/src/lib/supabase/storageService';
+import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
 import { ISSUE_CATEGORIES, IssueCategoryPicker } from '@/src/components/issues/IssueCategoryPicker';
 import { GlossyButton } from '@/src/components/ui';
-import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
 import { verifyPhoto } from '@/src/lib/ai';
+import { uploadImage } from '@/src/lib/supabase/storageService';
 import type { Coordinate, IssueCategory, PhotoVerificationResult } from '@/src/types';
 
 type IssueFormProps = {
@@ -28,22 +28,50 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
   const [title, setTitle] = useState('New campus issue');
   const [category, setCategory] = useState<IssueCategory>(ISSUE_CATEGORIES[0]);
   const [description, setDescription] = useState('');
+  const [otherContext, setOtherContext] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
 
-  async function pickImage() {
+  async function openCamera() {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
+  async function openGallery() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
+      aspect: [4, 3],
       quality: 0.8,
     });
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
+  function presentImagePicker() {
+    Alert.alert('Attach Photo', 'Choose a photo source', [
+      { text: 'Camera', onPress: openCamera },
+      { text: 'Gallery', onPress: openGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleSubmit() {
+    if (!photoUri) {
+      Alert.alert('Missing Photo', 'An image is required to submit an issue report.');
+      return;
+    }
+    const isOther = category.toLowerCase() === 'other';
+    if (isOther && !otherContext.trim()) {
+      Alert.alert('Missing Context', 'Please define the custom category you selected.');
+      return;
+    }
+
     setIsUploading(true);
     let finalPhotoUri = photoUri;
 
@@ -54,11 +82,22 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
 
     const photoVerification = finalPhotoUri
       ? await verifyPhoto({
-          imageUri: finalPhotoUri,
-          selectedCategory: category,
-          context: 'issue',
-        })
+        imageUri: finalPhotoUri,
+        selectedCategory: category,
+        context: 'issue',
+        title,
+        description,
+        otherContext: isOther ? otherContext : undefined,
+      })
       : undefined;
+
+    setVerification(photoVerification);
+
+    if (photoVerification && !photoVerification.isValid) {
+      Alert.alert('Verification Failed', photoVerification.explanation);
+      setIsUploading(false);
+      return;
+    }
 
     onSubmit({
       title,
@@ -68,7 +107,7 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
       photoUri: finalPhotoUri || 'demo://issue-before-form',
       photoVerification,
     });
-    setVerification(photoVerification);
+
     setTitle('New campus issue');
     setCategory(ISSUE_CATEGORIES[0]);
     setDescription('');
@@ -86,6 +125,14 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
         style={styles.input}
       />
       <IssueCategoryPicker selectedCategory={category} onSelectCategory={setCategory} />
+      {category.toLowerCase() === 'other' ? (
+        <TextInput
+          value={otherContext}
+          onChangeText={setOtherContext}
+          placeholder="Specify what this 'Other' issue is..."
+          style={styles.input}
+        />
+      ) : null}
       <TextInput
         value={description}
         onChangeText={setDescription}
@@ -93,7 +140,7 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
         multiline
         style={[styles.input, styles.multiline]}
       />
-      <Pressable style={styles.photoContainer} onPress={pickImage} disabled={isUploading}>
+      <Pressable style={styles.photoContainer} onPress={presentImagePicker} disabled={isUploading}>
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photoImage} contentFit="contain" />
         ) : (

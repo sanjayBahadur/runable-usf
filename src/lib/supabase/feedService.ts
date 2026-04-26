@@ -51,7 +51,7 @@ export async function getScopedFeedItems(params: {
     body: String(row.body ?? ''),
     visibilityScope:
       row.visibility_scope === 'group' || row.visibility_scope === 'global'
-        ? row.visibility_scope
+        ? (row.visibility_scope as 'group' | 'global')
         : undefined,
     targetGroupId: row.target_group_id ? String(row.target_group_id) : undefined,
     relatedEntityId: row.related_entity_id ? String(row.related_entity_id) : undefined,

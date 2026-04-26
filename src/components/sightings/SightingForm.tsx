@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { ThemedText } from '@/components/themed-text';
+import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
 import { SightingCategoryPicker } from '@/src/components/sightings/SightingCategoryPicker';
-import { uploadImage } from '@/src/lib/supabase/storageService';
 import { GlossyButton } from '@/src/components/ui';
 import { RUNABLE_THEME } from '@/src/constants/theme';
 import { verifyPhoto } from '@/src/lib/ai';
-import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
+import { uploadImage } from '@/src/lib/supabase/storageService';
 import type { Coordinate, PhotoVerificationResult, SightingCategory } from '@/src/types';
-import { ThemedText } from '@/components/themed-text';
 
 type SightingFormProps = {
   coordinate: Coordinate;
@@ -29,25 +29,53 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<SightingCategory>('animal');
+  const [otherContext, setOtherContext] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
 
   const isValid = title.trim().length > 0;
 
-  async function pickImage() {
+  async function openCamera() {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
+  async function openGallery() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
+      aspect: [4, 3],
       quality: 0.8,
     });
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
+  function presentImagePicker() {
+    Alert.alert('Attach Photo', 'Choose a photo source', [
+      { text: 'Camera', onPress: openCamera },
+      { text: 'Gallery', onPress: openGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleSubmit() {
     if (!isValid) return;
+
+    if (!photoUri) {
+      Alert.alert('Missing Photo', 'An image is required to submit a sighting report.');
+      return;
+    }
+    const isOther = category.toLowerCase() === 'other';
+    if (isOther && !otherContext.trim()) {
+      Alert.alert('Missing Context', 'Please define the custom category you selected.');
+      return;
+    }
 
     setIsUploading(true);
     let finalPhotoUri = photoUri;
@@ -59,11 +87,22 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
 
     const photoVerification = finalPhotoUri
       ? await verifyPhoto({
-          imageUri: finalPhotoUri,
-          selectedCategory: category,
-          context: category === 'landmark' ? 'landmark' : 'sighting',
-        })
+        imageUri: finalPhotoUri,
+        selectedCategory: category,
+        context: category === 'landmark' ? 'landmark' : 'sighting',
+        title: title,
+        description: description,
+        otherContext: isOther ? otherContext : undefined,
+      })
       : undefined;
+
+    setVerification(photoVerification);
+
+    if (photoVerification && !photoVerification.isValid) {
+      Alert.alert('Verification Failed', photoVerification.explanation);
+      setIsUploading(false);
+      return;
+    }
 
     onSubmit({
       title,
@@ -73,7 +112,6 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
       photoUri: finalPhotoUri ?? undefined,
       photoVerification,
     });
-    setVerification(photoVerification);
     setIsUploading(false);
   }
 
@@ -85,6 +123,19 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
 
       <TextLabel>Category</TextLabel>
       <SightingCategoryPicker selectedCategory={category} onSelectCategory={setCategory} />
+
+      {category.toLowerCase() === 'other' ? (
+        <>
+          <TextLabel>Specific Category</TextLabel>
+          <TextInput
+            style={styles.input}
+            value={otherContext}
+            onChangeText={setOtherContext}
+            placeholder="Specify what 'Other' is..."
+            placeholderTextColor={RUNABLE_THEME.colors.ink}
+          />
+        </>
+      ) : null}
 
       <TextLabel>Title</TextLabel>
       <TextInput
@@ -107,7 +158,7 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
       />
 
       <TextLabel>Photo</TextLabel>
-      <Pressable style={styles.photoContainer} onPress={pickImage} disabled={isUploading}>
+      <Pressable style={styles.photoContainer} onPress={presentImagePicker} disabled={isUploading}>
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photoImage} contentFit="contain" />
         ) : (

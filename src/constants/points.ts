@@ -8,4 +8,5 @@ export const POINTS = {
   pixelPainted: 10,
   territoryDefended: 75,
   territoryStolen: 125,
+  falseCompletionReported: 50,
 } as const;

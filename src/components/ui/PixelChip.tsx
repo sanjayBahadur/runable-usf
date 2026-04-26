@@ -5,7 +5,7 @@ import { RUNABLE_THEME } from '@/src/constants/theme';
 
 type PixelChipProps = {
   label: string;
-  tone?: 'neutral' | 'green' | 'gold' | 'blue' | 'dark';
+  tone?: 'neutral' | 'green' | 'gold' | 'blue' | 'dark' | 'danger';
 };
 
 export function PixelChip({ label, tone = 'neutral' }: PixelChipProps) {
@@ -48,6 +48,10 @@ const styles = StyleSheet.create({
   dark: {
     backgroundColor: RUNABLE_THEME.colors.xpBlue,
     borderColor: RUNABLE_THEME.colors.border,
+  },
+  danger: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#EF4444',
   },
   text: {
     fontSize: RUNABLE_THEME.fontSizes.sm,

@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
@@ -16,11 +16,13 @@ type FixIssueFormProps = {
     issueId: string,
     afterPhotoUri?: string,
     fixVerification?: PhotoVerificationResult,
+    fixDescription?: string,
   ) => void;
 };
 
 export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
   const [afterPhotoUri, setAfterPhotoUri] = useState<string | null>(null);
+  const [fixDescription, setFixDescription] = useState<string>('');
   const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,20 +30,42 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
     return null;
   }
 
-  async function pickImage() {
+  async function openCamera() {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled) setAfterPhotoUri(result.assets[0].uri);
+  }
+
+  async function openGallery() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
+      aspect: [4, 3],
       quality: 0.8,
     });
-    if (!result.canceled) {
-      setAfterPhotoUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setAfterPhotoUri(result.assets[0].uri);
+  }
+
+  function presentImagePicker() {
+    Alert.alert('Attach Photo', 'Choose a photo source', [
+      { text: 'Camera', onPress: openCamera },
+      { text: 'Gallery', onPress: openGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleSubmit() {
+    if (!afterPhotoUri) {
+      Alert.alert('Missing Photo', 'Please attach an after photo to submit.');
+      return;
+    }
+
     setIsSubmitting(true);
-    let finalAfterPhotoUri = afterPhotoUri ?? 'demo://issue-after-form';
+    let finalAfterPhotoUri = afterPhotoUri;
 
     if (afterPhotoUri && !afterPhotoUri.startsWith('demo://')) {
       const uploaded = await uploadImage(afterPhotoUri, 'issue-images', `issue_fix_${Date.now()}.jpg`);
@@ -54,11 +78,21 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
         beforeImageUri: issue.photoUri,
         afterImageUri: finalAfterPhotoUri,
         selectedCategory: issue.category,
+        originalTitle: issue.title,
+        originalDescription: issue.description,
+        fixDescription: fixDescription,
       });
     }
 
     setVerification(fixVerification);
-    onSubmit(issue.id, finalAfterPhotoUri, fixVerification);
+
+    if (fixVerification && !fixVerification.isValid) {
+      Alert.alert('Verification Failed', fixVerification.explanation);
+      setIsSubmitting(false);
+      return;
+    }
+
+    onSubmit(issue.id, finalAfterPhotoUri, fixVerification, fixDescription);
     setIsSubmitting(false);
   }
 
@@ -66,7 +100,7 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
     <View style={styles.container}>
       <ThemedText type="defaultSemiBold">Fix Issue</ThemedText>
       <ThemedText>Add an after photo to verify cleanup before marking fixed.</ThemedText>
-      <Pressable style={styles.photoContainer} onPress={pickImage} disabled={isSubmitting}>
+      <Pressable style={styles.photoContainer} onPress={presentImagePicker} disabled={isSubmitting}>
         {afterPhotoUri ? (
           <Image source={{ uri: afterPhotoUri }} style={styles.photoImage} contentFit="contain" />
         ) : (
@@ -75,6 +109,15 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
           </View>
         )}
       </Pressable>
+      <TextInput
+        style={styles.input}
+        placeholder="Describe how it was fixed..."
+        placeholderTextColor="#94A3B8"
+        value={fixDescription}
+        onChangeText={setFixDescription}
+        multiline
+        editable={!isSubmitting}
+      />
       <VerificationBadge verification={verification} />
       <VerificationWarning verification={verification} />
       <GlossyButton
@@ -117,5 +160,16 @@ const styles = StyleSheet.create({
   },
   photoHint: {
     color: '#64748B',
+  },
+  input: {
+    minHeight: 80,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(15, 23, 42, 0.12)',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#0F172A',
+    textAlignVertical: 'top',
   },
 });

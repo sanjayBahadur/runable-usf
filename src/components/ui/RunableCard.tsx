@@ -1,14 +1,16 @@
 import type { ReactNode } from 'react';
+import type { ViewStyle } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { RUNABLE_THEME } from '@/src/constants/theme';
 
 type RunableCardProps = {
   children: ReactNode;
+  style?: ViewStyle | ViewStyle[];
 };
 
-export function RunableCard({ children }: RunableCardProps) {
-  return <View style={styles.card}>{children}</View>;
+export function RunableCard({ children, style }: RunableCardProps) {
+  return <View style={[styles.card, style]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

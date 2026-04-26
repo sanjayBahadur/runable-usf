@@ -6,6 +6,7 @@ export type FixIssueInput = {
   fixedByUserId: string;
   afterPhotoUri?: string;
   fixVerification?: PhotoVerificationResult;
+  fixDescription?: string;
   issueCoordinate?: Coordinate;
   ownership?: CellOwnership[];
   fixerGroupId?: string;
@@ -35,6 +36,7 @@ export function fixIssue(input: FixIssueInput): {
       fixedByUserId: input.fixedByUserId,
       afterPhotoUri: input.afterPhotoUri ?? 'demo://issue-after-new',
       fixVerification: input.fixVerification,
+      fixDescription: input.fixDescription,
       fixedAt: new Date().toISOString(),
     },
     pointsAwarded,

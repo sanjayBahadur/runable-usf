@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { createIssueReport } from '@/src/features/issues/createIssueReport';
 import { fixIssue } from '@/src/features/issues/fixIssue';
+import { processFalseCompletionReport } from '@/src/features/issues/reportFalseCompletion';
 import { createIssue, getIssues, updateIssue } from '@/src/lib/supabase/issueService';
 import type { Coordinate, IssueCategory, IssueReport, PhotoVerificationResult } from '@/src/types';
 
@@ -111,9 +112,34 @@ export function useIssueReports({
     return result;
   }
 
+  async function reportFalseCompletion(issueId: string, description: string) {
+    const issue = issues.find((i) => i.id === issueId);
+    if (!issue) return null;
+
+    const result = await processFalseCompletionReport({
+      issue,
+      reporterId: currentUserId,
+      description,
+    });
+
+    setIssues((existing) =>
+      existing.map((entry) => (entry.id === issueId ? result.updatedIssue : entry)),
+    );
+
+    if (enabled && result.updatedIssue.status === 'open' && result.falseCompletionRecord.isVerified) {
+      await updateIssue(issueId, {
+        status: 'open',
+        is_false_completion: true,
+      });
+    }
+
+    return result;
+  }
+
   return {
     issues,
     reportIssue,
     markIssueFixed,
+    reportFalseCompletion,
   };
 }

@@ -55,6 +55,7 @@ export function mapIssueRow(d: Record<string, unknown>): IssueReport {
     fixedByUserId: d.fixed_by_user_id ? String(d.fixed_by_user_id) : undefined,
     photoUri: d.photo_path ? String(d.photo_path) : undefined,
     afterPhotoUri: d.after_photo_path ? String(d.after_photo_path) : undefined,
+    isFalseCompletion: Boolean(d.is_false_completion),
     createdAt: String(d.created_at ?? new Date().toISOString()),
     fixedAt: d.fixed_at ? String(d.fixed_at) : undefined,
   };

@@ -45,7 +45,7 @@ export function usePixelArt({
     }
 
     setCellArt((existingArt) =>
-      applyCellPaint(cellId, userGroupId, selectedColor, existingArt, userId),
+      applyCellPaint(cellId, userGroupId ?? userId, selectedColor, existingArt, userId),
     );
     const ownerId = userGroupId ?? userId;
     void saveCellArt({

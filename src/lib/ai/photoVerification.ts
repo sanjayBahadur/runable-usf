@@ -1,13 +1,15 @@
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import type { PhotoVerificationResult } from '@/src/types';
 import {
   buildBeforeAfterFixPrompt,
   buildPhotoVerificationPrompt,
+  buildFalseCompletionPrompt,
   PHOTO_VERIFICATION_SYSTEM_PROMPT,
 } from '@/src/lib/ai/prompts';
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 function getGeminiApiKey(): string {
   return (
@@ -49,31 +51,32 @@ function decodeJsonResponse(text: string): Record<string, unknown> | null {
   }
 }
 
-function encodeBase64(binary: string): string | null {
-  if (typeof globalThis.btoa === 'function') {
-    return globalThis.btoa(binary);
-  }
-  return null;
-}
-
 async function buildImagePart(uri: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> {
+  if (uri.startsWith('demo://')) return null;
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = '';
-    bytes.forEach((byte) => {
-      binary += String.fromCharCode(byte);
-    });
-    const data = encodeBase64(binary);
+    let data: string;
+    let mimeType = 'image/jpeg';
+    if (uri.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+    else if (uri.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+
+    if (uri.startsWith('http')) {
+      const tempPath = FileSystem.cacheDirectory + 'temp_image_' + Date.now() + '.jpg';
+      const downloaded = await FileSystem.downloadAsync(uri, tempPath);
+      data = await FileSystem.readAsStringAsync(downloaded.uri, { encoding: FileSystem.EncodingType.Base64 });
+      await FileSystem.deleteAsync(downloaded.uri, { idempotent: true });
+    } else {
+      data = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    }
+
     if (!data) return null;
     return {
       inlineData: {
-        mimeType: blob.type || 'image/jpeg',
+        mimeType,
         data,
       },
     };
-  } catch {
+  } catch (err) {
+    console.error("AI image generation error:", err);
     return null;
   }
 }
@@ -142,6 +145,9 @@ export async function verifyPhoto(input: {
   imageUri: string;
   selectedCategory?: string;
   context: 'issue' | 'sighting' | 'landmark' | 'fix-after';
+  title?: string;
+  description?: string;
+  otherContext?: string;
 }): Promise<PhotoVerificationResult> {
   const imagePart = await buildImagePart(input.imageUri);
   if (!imagePart) {
@@ -162,6 +168,9 @@ export async function verifyIssueFixBeforeAfter(input: {
   beforeImageUri: string;
   afterImageUri: string;
   selectedCategory?: string;
+  originalTitle?: string;
+  originalDescription?: string;
+  fixDescription?: string;
 }): Promise<PhotoVerificationResult> {
   const [beforePart, afterPart] = await Promise.all([
     buildImagePart(input.beforeImageUri),
@@ -182,5 +191,36 @@ export async function verifyIssueFixBeforeAfter(input: {
     ]);
   } catch {
     return safeManualReview('AI fix verification failed unexpectedly. Marked for manual review.');
+  }
+}
+
+export async function verifyFalseCompletion(input: {
+  beforeImageUri: string;
+  afterImageUri: string;
+  selectedCategory?: string;
+  originalTitle?: string;
+  originalDescription?: string;
+  fixDescription?: string;
+  falseCompletionDescription: string;
+}): Promise<PhotoVerificationResult> {
+  const [beforePart, afterPart] = await Promise.all([
+    buildImagePart(input.beforeImageUri),
+    buildImagePart(input.afterImageUri),
+  ]);
+
+  if (!beforePart || !afterPart) {
+    return safeManualReview('Before/after images could not be processed. Marked for manual review.');
+  }
+
+  try {
+    return await callGemini([
+      { text: buildFalseCompletionPrompt(input) },
+      { text: 'BEFORE image:' },
+      beforePart,
+      { text: 'AFTER image:' },
+      afterPart,
+    ]);
+  } catch {
+    return safeManualReview('AI verification failed unexpectedly. Marked for manual review.');
   }
 }

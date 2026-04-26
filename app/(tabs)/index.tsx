@@ -4,33 +4,33 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { AuthGate } from '@/src/components/auth';
+import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/components/campus';
+import { IssueCard, IssueForm } from '@/src/components/issues';
+import { AppShell, MapOverlayShell } from '@/src/components/layout';
+import { CampusMap } from '@/src/components/map';
+import { ActiveRunOverlay, RunSummaryCard } from '@/src/components/run';
+import { LandmarkVoteCard, SightingCard, SightingForm } from '@/src/components/sightings';
+import { ActionDock, type ActionDockItem, GlossyButton, XPWindow } from '@/src/components/ui';
 import {
   CAMPUS_CONFIG,
-  USF_CAMPUS_NAME,
   USF_BOARD_BOUNDARY,
+  USF_CAMPUS_NAME,
   USF_INITIAL_REGION,
   USF_PREVIEW_REGION,
 } from '@/src/constants';
 import { RUNABLE_THEME } from '@/src/constants/theme';
-import { AuthGate } from '@/src/components/auth';
-import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/components/campus';
-import { IssueCard, IssueForm } from '@/src/components/issues';
-import { SightingCard, SightingForm, LandmarkVoteCard } from '@/src/components/sightings';
-import { AppShell, MapOverlayShell } from '@/src/components/layout';
-import { CampusMap } from '@/src/components/map';
-import { ActiveRunOverlay, RunSummaryCard } from '@/src/components/run';
-import { ActionDock, type ActionDockItem, GlossyButton, XPWindow } from '@/src/components/ui';
 import { runDemoTerritoryScenario } from '@/src/demo';
 import { completeRunClaim, type CompleteRunClaimResult } from '@/src/features/runs';
-import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
-import { getCellArt, getCellOwnership, getGroups, insertFeedItem, saveCellOwnership, saveCellScores, saveRun } from '@/src/lib/supabase';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
-import { useSightings } from '@/src/hooks/useSightings';
 import { usePixelArt } from '@/src/hooks/usePixelArt';
 import { useRunTracker } from '@/src/hooks/useRunTracker';
+import { useSightings } from '@/src/hooks/useSightings';
+import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
+import { getCellArt, getCellOwnership, getGroups, insertFeedItem, saveCellOwnership, saveCellScores, saveRun } from '@/src/lib/supabase';
 import { useAppStore } from '@/src/store/appStore';
-import type { Coordinate, PhotoVerificationResult } from '@/src/types';
+import type { CellArt, Coordinate, PhotoVerificationResult } from '@/src/types';
 
 const demoScenario = runDemoTerritoryScenario();
 const onCampusLocation = CAMPUS_CONFIG.center;
@@ -62,7 +62,7 @@ export default function HomeScreen() {
   const [territoryScores, setTerritoryScores] = useState(demoScenario.scores);
   const [territoryOwnership, setTerritoryOwnership] = useState(demoScenario.ownership);
   const [mapGroups, setMapGroups] = useState(demoScenario.groups);
-  const [seededCellArt, setSeededCellArt] = useState([]);
+  const [seededCellArt, setSeededCellArt] = useState<CellArt[]>([]);
   const [runSummary, setRunSummary] = useState<CompleteRunClaimResult | null>(null);
   const [showedInitialAuth, setShowedInitialAuth] = useState(false);
   const [simulatorActive, setSimulatorActive] = useState(false);
@@ -149,7 +149,7 @@ export default function HomeScreen() {
     );
   }, [isAuthenticated]);
 
-  const { issues, reportIssue, markIssueFixed } = useIssueReports({
+  const { issues, reportIssue, markIssueFixed, reportFalseCompletion } = useIssueReports({
     initialIssues: isAuthenticated ? [] : demoScenario.issues,
     currentUserId,
     currentUserGroupId,
@@ -281,6 +281,23 @@ export default function HomeScreen() {
       `Fixed "${result.issue.title}" for ${result.pointsAwarded} pts. Pin turned green.`,
     );
     Alert.alert('Issue fixed', `${result.issue.title} fixed for ${result.pointsAwarded} pts.`);
+  }
+
+  async function handleReportFalseCompletion(issueId: string, description: string) {
+    const result = await reportFalseCompletion(issueId, description);
+    if (!result) return;
+
+    if (result.falseCompletionRecord.isVerified) {
+      Alert.alert(
+        'False Completion Verified',
+        `Gemini agreed: "${result.falseCompletionRecord.verificationResult?.explanation}". The issue has been reopened.`,
+      );
+    } else {
+      Alert.alert(
+        'Report Rejected',
+        `Gemini reviewed the fix and determined it is valid: "${result.falseCompletionRecord.verificationResult?.explanation}"`,
+      );
+    }
   }
 
   function handleSightingPress(sightingId: string) {
@@ -488,40 +505,40 @@ export default function HomeScreen() {
   const dockActions: ActionDockItem[] =
     runTracker.status === 'recording' || runTracker.status === 'paused'
       ? [
-          {
-            label: runTracker.status === 'recording' ? 'Pause Run' : 'Resume Run',
-            onPress: runTracker.status === 'recording' ? runTracker.pauseRun : handleResumeRun,
-            tone: runTracker.status === 'recording' ? 'secondary' : 'primary',
-          },
-          {
-            label: 'Finish Run',
-            onPress: handleFinishRun,
-            tone: 'dark' as const,
-          },
-          {
-            label: 'Cancel',
-            onPress: handleCancelRun,
-            tone: 'danger' as const,
-          },
-        ]
+        {
+          label: runTracker.status === 'recording' ? 'Pause Run' : 'Resume Run',
+          onPress: runTracker.status === 'recording' ? runTracker.pauseRun : handleResumeRun,
+          tone: runTracker.status === 'recording' ? 'secondary' : 'primary',
+        },
+        {
+          label: 'Finish Run',
+          onPress: handleFinishRun,
+          tone: 'dark' as const,
+        },
+        {
+          label: 'Cancel',
+          onPress: handleCancelRun,
+          tone: 'danger' as const,
+        },
+      ]
       : [
-          {
-            label:
-              !simulatorActive && (runTracker.status === 'permissionDenied' || runTracker.status === 'error')
-                ? 'Enable GPS'
-                : simulatorActive
-                  ? 'Simulate Run'
-                  : 'Start Run',
-            onPress: handleStartRun,
-            tone: simulatorActive ? 'secondary' : 'primary',
-          },
-          { label: 'Report Issue', onPress: promptIssuePinning, tone: 'secondary' as const },
-          {
-            label: 'Register Sighting',
-            onPress: promptSightingRegistration,
-            tone: 'secondary' as const,
-          },
-        ];
+        {
+          label:
+            !simulatorActive && (runTracker.status === 'permissionDenied' || runTracker.status === 'error')
+              ? 'Enable GPS'
+              : simulatorActive
+                ? 'Simulate Run'
+                : 'Start Run',
+          onPress: handleStartRun,
+          tone: simulatorActive ? 'secondary' : 'primary',
+        },
+        { label: 'Report Issue', onPress: promptIssuePinning, tone: 'secondary' as const },
+        {
+          label: 'Register Sighting',
+          onPress: promptSightingRegistration,
+          tone: 'secondary' as const,
+        },
+      ];
 
   return (
     <AppShell>
@@ -625,7 +642,11 @@ export default function HomeScreen() {
                       onSubmit={handleReportIssue}
                     />
                   ) : selectedIssue ? (
-                    <IssueCard issue={selectedIssue} onFixIssue={handleFixIssue} />
+                    <IssueCard
+                      issue={selectedIssue}
+                      onFixIssue={handleFixIssue}
+                      onReportFalseCompletion={handleReportFalseCompletion}
+                    />
                   ) : draftSightingCoordinate ? (
                     <SightingForm
                       coordinate={draftSightingCoordinate}

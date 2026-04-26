@@ -1,29 +1,46 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useMemo } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { AppShell } from '@/src/components/layout';
 import { IssueCard } from '@/src/components/issues';
+import { AppShell } from '@/src/components/layout';
 import { XPWindow } from '@/src/components/ui';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import { runDemoTerritoryScenario } from '@/src/demo';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
-import { RUNABLE_THEME } from '@/src/constants/theme';
 
 export default function ResolvedIssuesScreen() {
   const { user, isAuthenticated } = useAuth();
-  
+
 
   const demoScenario = runDemoTerritoryScenario();
-  
-  const { issues } = useIssueReports({
+
+  const { issues, reportFalseCompletion } = useIssueReports({
     initialIssues: isAuthenticated ? [] : demoScenario.issues,
     currentUserId: user?.id ?? 'guest',
     currentUserGroupId: user?.homeGroupId ?? 'spectator',
     enabled: isAuthenticated,
   });
+
+  async function handleReportFalseCompletion(issueId: string, description: string) {
+    const result = await reportFalseCompletion(issueId, description);
+    if (!result) return;
+
+    if (result.falseCompletionRecord.isVerified) {
+      Alert.alert(
+        'False Completion Verified',
+        `Gemini agreed: "${result.falseCompletionRecord.verificationResult?.explanation}". The issue has been reopened.`,
+      );
+    } else {
+      Alert.alert(
+        'Report Rejected',
+        `Gemini reviewed the fix and determined it is valid: "${result.falseCompletionRecord.verificationResult?.explanation}"`,
+      );
+    }
+  }
 
   const resolvedIssues = useMemo(() => {
     return issues
@@ -48,7 +65,10 @@ export default function ResolvedIssuesScreen() {
           ) : (
             resolvedIssues.map((issue) => (
               <View key={issue.id} style={styles.itemWrapper}>
-                <IssueCard issue={issue} />
+                <IssueCard
+                  issue={issue}
+                  onReportFalseCompletion={handleReportFalseCompletion}
+                />
               </View>
             ))
           )}
