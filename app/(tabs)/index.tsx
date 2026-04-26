@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { AuthGate } from '@/src/components/auth';
 import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/components/campus';
+import { GeminiVerdictModal } from '@/src/components/ai';
 import { IssueCard, IssueForm } from '@/src/components/issues';
 import { AppShell, MapOverlayShell } from '@/src/components/layout';
 import { CampusMap } from '@/src/components/map';
@@ -70,6 +71,8 @@ export default function HomeScreen() {
   const [interactionIntent, setInteractionIntent] = useState<'issue' | 'sighting'>('issue');
   const [draftSightingCoordinate, setDraftSightingCoordinate] = useState<Coordinate | null>(null);
   const [selectedSightingId, setSelectedSightingId] = useState<string | null>(null);
+  const [verdictModalVisible, setVerdictModalVisible] = useState(false);
+  const [verdictResult, setVerdictResult] = useState<PhotoVerificationResult | null>(null);
 
   const isCampusMode = appMode === 'campus';
   const simulatedUserLocation = isCampusMode ? onCampusLocation : previewLocation;
@@ -287,17 +290,8 @@ export default function HomeScreen() {
     const result = await reportFalseCompletion(issueId, description);
     if (!result) return;
 
-    if (result.falseCompletionRecord.isVerified) {
-      Alert.alert(
-        'False Completion Verified',
-        `Gemini agreed: "${result.falseCompletionRecord.verificationResult?.explanation}". The issue has been reopened.`,
-      );
-    } else {
-      Alert.alert(
-        'Report Rejected',
-        `Gemini reviewed the fix and determined it is valid: "${result.falseCompletionRecord.verificationResult?.explanation}"`,
-      );
-    }
+    setVerdictResult(result.falseCompletionRecord.verificationResult ?? null);
+    setVerdictModalVisible(true);
   }
 
   function handleSightingPress(sightingId: string) {
@@ -700,6 +694,13 @@ export default function HomeScreen() {
             error={auth.error}
           />
         ) : null}
+
+        <GeminiVerdictModal
+          visible={verdictModalVisible}
+          onClose={() => setVerdictModalVisible(false)}
+          result={verdictResult}
+          title={verdictResult?.isValid === false ? 'False Completion Verified ✓' : 'Report Rejected'}
+        />
       </SafeAreaView>
     </AppShell>
   );

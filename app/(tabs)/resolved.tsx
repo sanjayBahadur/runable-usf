@@ -1,9 +1,10 @@
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useMemo } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { GeminiVerdictModal } from '@/src/components/ai';
 import { IssueCard } from '@/src/components/issues';
 import { AppShell } from '@/src/components/layout';
 import { XPWindow } from '@/src/components/ui';
@@ -11,10 +12,12 @@ import { RUNABLE_THEME } from '@/src/constants/theme';
 import { runDemoTerritoryScenario } from '@/src/demo';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
+import type { PhotoVerificationResult } from '@/src/types';
 
 export default function ResolvedIssuesScreen() {
   const { user, isAuthenticated } = useAuth();
-
+  const [verdictModalVisible, setVerdictModalVisible] = useState(false);
+  const [verdictResult, setVerdictResult] = useState<PhotoVerificationResult | null>(null);
 
   const demoScenario = runDemoTerritoryScenario();
 
@@ -29,17 +32,8 @@ export default function ResolvedIssuesScreen() {
     const result = await reportFalseCompletion(issueId, description);
     if (!result) return;
 
-    if (result.falseCompletionRecord.isVerified) {
-      Alert.alert(
-        'False Completion Verified',
-        `Gemini agreed: "${result.falseCompletionRecord.verificationResult?.explanation}". The issue has been reopened.`,
-      );
-    } else {
-      Alert.alert(
-        'Report Rejected',
-        `Gemini reviewed the fix and determined it is valid: "${result.falseCompletionRecord.verificationResult?.explanation}"`,
-      );
-    }
+    setVerdictResult(result.falseCompletionRecord.verificationResult ?? null);
+    setVerdictModalVisible(true);
   }
 
   const resolvedIssues = useMemo(() => {
@@ -73,6 +67,13 @@ export default function ResolvedIssuesScreen() {
             ))
           )}
         </ScrollView>
+
+        <GeminiVerdictModal
+          visible={verdictModalVisible}
+          onClose={() => setVerdictModalVisible(false)}
+          result={verdictResult}
+          title={verdictResult?.isValid === false ? 'False Completion Verified ✓' : 'Report Rejected'}
+        />
       </SafeAreaView>
     </AppShell>
   );

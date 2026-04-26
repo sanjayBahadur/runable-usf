@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
+import { VerificationBadge, VerificationWarning, GeminiVerdictModal } from '@/src/components/ai';
 import { SightingCategoryPicker } from '@/src/components/sightings/SightingCategoryPicker';
 import { GlossyButton } from '@/src/components/ui';
 import { RUNABLE_THEME } from '@/src/constants/theme';
@@ -33,12 +33,13 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  const [verdictModalVisible, setVerdictModalVisible] = useState(false);
 
   const isValid = title.trim().length > 0;
 
   async function openCamera() {
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -48,7 +49,7 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
 
   async function openGallery() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -99,7 +100,7 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
     setVerification(photoVerification);
 
     if (photoVerification && !photoVerification.isValid) {
-      Alert.alert('Verification Failed', photoVerification.explanation);
+      setVerdictModalVisible(true);
       setIsUploading(false);
       return;
     }
@@ -174,6 +175,12 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
         <GlossyButton label="Cancel" onPress={onCancel} tone="secondary" disabled={isUploading} />
         <GlossyButton label={isUploading ? 'Uploading...' : 'Add Sighting'} onPress={handleSubmit} tone={isValid ? 'primary' : 'secondary'} disabled={isUploading} />
       </View>
+
+      <GeminiVerdictModal
+        visible={verdictModalVisible}
+        onClose={() => setVerdictModalVisible(false)}
+        result={verification || null}
+      />
     </View>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
+import { VerificationBadge, VerificationWarning, GeminiVerdictModal } from '@/src/components/ai';
 import { ISSUE_CATEGORIES, IssueCategoryPicker } from '@/src/components/issues/IssueCategoryPicker';
 import { GlossyButton } from '@/src/components/ui';
 import { verifyPhoto } from '@/src/lib/ai';
@@ -32,10 +32,11 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  const [verdictModalVisible, setVerdictModalVisible] = useState(false);
 
   async function openCamera() {
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -45,7 +46,7 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
 
   async function openGallery() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -94,7 +95,7 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
     setVerification(photoVerification);
 
     if (photoVerification && !photoVerification.isValid) {
-      Alert.alert('Verification Failed', photoVerification.explanation);
+      setVerdictModalVisible(true);
       setIsUploading(false);
       return;
     }
@@ -159,6 +160,12 @@ export function IssueForm({ coordinate, onCancel, onSubmit }: IssueFormProps) {
         {onCancel ? <GlossyButton label="Cancel" onPress={onCancel} tone="secondary" disabled={isUploading} /> : null}
         <GlossyButton label={isUploading ? 'Uploading...' : 'Report issue'} onPress={handleSubmit} tone="danger" disabled={isUploading} />
       </View>
+
+      <GeminiVerdictModal
+        visible={verdictModalVisible}
+        onClose={() => setVerdictModalVisible(false)}
+        result={verification || null}
+      />
     </View>
   );
 }

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { createIssueReport } from '@/src/features/issues/createIssueReport';
 import { fixIssue } from '@/src/features/issues/fixIssue';
 import { processFalseCompletionReport } from '@/src/features/issues/reportFalseCompletion';
-import { createIssue, getIssues, updateIssue } from '@/src/lib/supabase/issueService';
+import { createIssue, updateIssue } from '@/src/lib/supabase/issueService';
+import { useIssueStore } from '@/src/store/issueStore';
 import type { Coordinate, IssueCategory, IssueReport, PhotoVerificationResult } from '@/src/types';
 
 type UseIssueReportsOptions = {
@@ -19,23 +20,12 @@ export function useIssueReports({
   currentUserGroupId,
   enabled = true,
 }: UseIssueReportsOptions) {
-  const [issues, setIssues] = useState<IssueReport[]>(initialIssues);
+  const { issues, fetchIssues, updateIssueInState, addIssueToState } = useIssueStore();
 
   useEffect(() => {
-    if (!enabled) {
-      setIssues(initialIssues);
-      return;
-    }
-    async function load() {
-      try {
-        const data = await getIssues();
-        setIssues(data);
-      } catch (err) {
-        console.warn('Failed to load real issues, using demo', err);
-      }
-    }
-    void load();
-  }, [enabled, initialIssues]);
+    void fetchIssues(enabled, initialIssues);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   function reportIssue(input: {
     title: string;
@@ -50,7 +40,7 @@ export function useIssueReports({
       reportedByUserId: currentUserId,
     });
 
-    setIssues((existing) => [issue, ...existing]);
+    addIssueToState(issue);
 
     if (!enabled) {
       return { issue, pointsAwarded };
@@ -65,12 +55,12 @@ export function useIssueReports({
       reported_by_user_id: issue.reportedByUserId,
       photo_uri: issue.photoUri,
       created_at: issue.createdAt,
-    }).then((persistedId) => {
-      if (!persistedId) return;
-      setIssues((existing) => existing.map((entry) => (
-        entry.id === issue.id ? { ...entry, id: persistedId } : entry
-      )));
-    }).catch((e) => console.error("Failed to commit issue up to Supabase", e));
+    })
+      .then((persistedId) => {
+        if (!persistedId) return;
+        updateIssueInState(issue.id, { ...issue, id: persistedId });
+      })
+      .catch((e) => console.error('Failed to commit issue to Supabase', e));
 
     return { issue, pointsAwarded };
   }
@@ -94,9 +84,7 @@ export function useIssueReports({
       fixVerification,
     });
 
-    setIssues((existing) =>
-      existing.map((entry) => (entry.id === issueId ? result.issue : entry)),
-    );
+    updateIssueInState(issueId, result.issue);
 
     if (!enabled) {
       return result;
@@ -107,7 +95,7 @@ export function useIssueReports({
       fixed_by_user_id: currentUserId,
       after_photo_path: afterPhotoUri,
       fixed_at: result.issue.fixedAt,
-    }).catch(e => console.error("Failed to update issue on Supabase", e));
+    }).catch((e) => console.error('Failed to update issue on Supabase', e));
 
     return result;
   }
@@ -122,15 +110,14 @@ export function useIssueReports({
       description,
     });
 
-    setIssues((existing) =>
-      existing.map((entry) => (entry.id === issueId ? result.updatedIssue : entry)),
-    );
+    // Update local state immediately — this is what makes the pin go back to red
+    updateIssueInState(issueId, result.updatedIssue);
 
+    // Persist to DB — only send fields that definitely exist in schema
     if (enabled && result.updatedIssue.status === 'open' && result.falseCompletionRecord.isVerified) {
-      await updateIssue(issueId, {
+      updateIssue(issueId, {
         status: 'open',
-        is_false_completion: true,
-      });
+      }).catch((e) => console.error('Failed to reopen issue on Supabase', e));
     }
 
     return result;

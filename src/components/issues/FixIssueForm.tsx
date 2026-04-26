@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { VerificationBadge, VerificationWarning } from '@/src/components/ai';
+import { GeminiVerdictModal, VerificationBadge, VerificationWarning } from '@/src/components/ai';
 import { GlossyButton } from '@/src/components/ui';
 import { verifyIssueFixBeforeAfter } from '@/src/lib/ai';
 import { uploadImage } from '@/src/lib/supabase/storageService';
@@ -25,6 +25,7 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
   const [fixDescription, setFixDescription] = useState<string>('');
   const [verification, setVerification] = useState<PhotoVerificationResult | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verdictModalVisible, setVerdictModalVisible] = useState(false);
 
   if (issue.status === 'fixed') {
     return null;
@@ -32,7 +33,7 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
 
   async function openCamera() {
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -42,7 +43,7 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
 
   async function openGallery() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -87,7 +88,7 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
     setVerification(fixVerification);
 
     if (fixVerification && !fixVerification.isValid) {
-      Alert.alert('Verification Failed', fixVerification.explanation);
+      setVerdictModalVisible(true);
       setIsSubmitting(false);
       return;
     }
@@ -125,6 +126,12 @@ export function FixIssueForm({ issue, onSubmit }: FixIssueFormProps) {
         onPress={handleSubmit}
         tone="secondary"
         disabled={isSubmitting}
+      />
+
+      <GeminiVerdictModal
+        visible={verdictModalVisible}
+        onClose={() => setVerdictModalVisible(false)}
+        result={verification || null}
       />
     </View>
   );

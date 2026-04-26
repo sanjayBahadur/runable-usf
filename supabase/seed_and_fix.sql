@@ -149,9 +149,22 @@ END $$;
 --   Authentication → Settings → Uncheck "Enable email confirmations"
 -- SQL cannot change auth config directly.
 
+-- ── 8. Add false completion tracking to issues ──
+DO $$ BEGIN
+  ALTER TABLE public.issues ADD COLUMN is_false_completion BOOLEAN DEFAULT FALSE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- ── 9. Add fix_description to issues ──
+DO $$ BEGIN
+  ALTER TABLE public.issues ADD COLUMN fix_description TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 -- ============================================================
 -- Done! Verify:
 --   • 5 groups in Table Editor → groups
 --   • 3 buckets in Storage
 --   • No migration version conflicts
+--   • issues table has is_false_completion column
 -- ============================================================

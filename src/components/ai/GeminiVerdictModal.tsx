@@ -58,12 +58,13 @@ export function GeminiVerdictModal({ visible, onClose, result, title }: GeminiVe
                 </View>
               )}
 
-              <GlossyButton 
-                label="Acknowledged" 
-                onPress={onClose} 
-                tone="dark" 
-                style={styles.btn}
-              />
+              <View style={styles.btn}>
+                <GlossyButton
+                  label="Acknowledged"
+                  onPress={onClose}
+                  tone="dark"
+                />
+              </View>
             </ScrollView>
           </XPWindow>
         </View>
