@@ -31,7 +31,7 @@ function buildRunPoint(location: Location.LocationObject): RunPoint {
 export function useRunTracker({
   userId,
   groupId,
-  minPointDistanceMeters = 3,
+  minPointDistanceMeters = 1,
 }: UseRunTrackerOptions) {
   const { permissionStatus, canAskAgain, isLoading, requestPermission, refreshPermission } =
     useLocationPermission();
@@ -75,6 +75,24 @@ export function useRunTracker({
         const lastPoint = existing[existing.length - 1];
         if (lastPoint) {
           const segmentDistance = calculateDistanceMeters(lastPoint.coordinate, nextPoint.coordinate);
+          
+          // Anti-drift logic
+          const isSimulated = location.coords.speed === 2.5; // Our mock speed
+          if (!isSimulated) {
+            const reportedSpeed = location.coords.speed ?? 0;
+            const reportedAccuracy = location.coords.accuracy ?? 15;
+
+            // Reject if moving extremely slowly (less than 1 km/h) over a tiny distance
+            if (segmentDistance < 3 && reportedSpeed < 0.3) {
+              return existing;
+            }
+
+            // Reject if movement is purely within the GPS noise radius
+            if (segmentDistance < reportedAccuracy / 2.5) {
+              return existing;
+            }
+          }
+
           if (segmentDistance < minPointDistanceMeters) {
             return existing;
           }
@@ -93,9 +111,9 @@ export function useRunTracker({
 
     locationSubscriptionRef.current = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.Balanced,
-        distanceInterval: 5,
-        timeInterval: 3000,
+        accuracy: Location.Accuracy.Highest,
+        distanceInterval: 1,
+        timeInterval: 1000,
       },
       appendLocation,
     );
@@ -127,7 +145,7 @@ export function useRunTracker({
 
     try {
       const initialLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.Highest,
       });
       appendLocation(initialLocation);
       await beginWatching();
@@ -147,6 +165,39 @@ export function useRunTracker({
     requestPermission,
     resetRunState,
   ]);
+
+  const startSimulatedRun = useCallback(() => {
+    setErrorMessage(null);
+    clearWatcher();
+    resetRunState();
+
+    const now = new Date();
+    startedAtRef.current = now.toISOString();
+    startedAtMsRef.current = now.getTime();
+    setStatus('recording');
+
+    return startedAtRef.current;
+  }, [clearWatcher, resetRunState]);
+
+  const addSimulatedPoint = useCallback(
+    (coord: Coordinate) => {
+      if (status !== 'recording') return;
+      const mockLocation: Location.LocationObject = {
+        coords: {
+          latitude: coord[0],
+          longitude: coord[1],
+          altitude: null,
+          accuracy: 5,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: 2.5, // Used to bypass drift checks for simulated runs
+        },
+        timestamp: Date.now(),
+      };
+      appendLocation(mockLocation);
+    },
+    [appendLocation, status],
+  );
 
   const pauseRun = useCallback(() => {
     if (status !== 'recording') {
@@ -244,6 +295,8 @@ export function useRunTracker({
     permissionStatus,
     permissionLoading: isLoading,
     startRun,
+    startSimulatedRun,
+    addSimulatedPoint,
     pauseRun,
     resumeRun,
     finishRun,

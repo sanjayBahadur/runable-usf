@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
     gap: RUNABLE_THEME.spacing.sm,
   },
   copy: {
-    color: RUNABLE_THEME.colors.mutedInk,
+    color: RUNABLE_THEME.colors.ink,
   },
 });

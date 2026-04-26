@@ -30,7 +30,7 @@ export function RunPathLayer({ runPath }: RunPathLayerProps) {
     <>
       {runPaths.map((path, index) => (
         <Polyline
-          key={`run-path-${index}`}
+          key={`run-path-${index}-${path.length}`}
           coordinates={path.map(toMapCoordinate)}
           strokeColor={STATUS_COLORS.route}
           strokeWidth={4}

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 
 type FeedTabsProps = {
   activeTab: 'feed' | 'leaderboards';
@@ -14,8 +15,17 @@ export function FeedTabs({ activeTab, onChange }: FeedTabsProps) {
         <Pressable
           key={tab}
           onPress={() => onChange(tab)}
-          style={[styles.tab, activeTab === tab ? styles.activeTab : undefined]}>
-          <ThemedText>{tab === 'feed' ? 'Feed' : 'Leaderboards'}</ThemedText>
+          style={({ pressed }) => [
+            styles.tab,
+            activeTab === tab ? styles.activeTab : styles.inactiveTab,
+            pressed ? styles.pressed : null,
+          ]}>
+          <ThemedText
+            type="defaultSemiBold"
+            lightColor={activeTab === tab ? '#F8FAFC' : RUNABLE_THEME.colors.ink}
+            darkColor={activeTab === tab ? '#F8FAFC' : '#CBD5E1'}>
+            {tab === 'feed' ? 'Feed' : 'Leaderboards'}
+          </ThemedText>
         </Pressable>
       ))}
     </View>
@@ -25,16 +35,24 @@ export function FeedTabs({ activeTab, onChange }: FeedTabsProps) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 8,
+    gap: RUNABLE_THEME.spacing.sm,
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: RUNABLE_THEME.radii.sm,
+    borderWidth: 2,
+    borderColor: RUNABLE_THEME.colors.border,
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
+    ...RUNABLE_THEME.shadows.soft,
   },
   activeTab: {
-    backgroundColor: 'rgba(14, 165, 233, 0.16)',
+    backgroundColor: RUNABLE_THEME.colors.xpBlue,
+  },
+  inactiveTab: {
+    backgroundColor: RUNABLE_THEME.colors.cream,
+  },
+  pressed: {
+    transform: [{ translateY: 1 }],
   },
 });

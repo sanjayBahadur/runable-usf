@@ -31,7 +31,7 @@ export function CampusStatusChip({ campusName, accessState }: CampusStatusChipPr
     <View style={[styles.container, accessState === 'onCampus' ? styles.active : styles.preview]}>
       <View style={styles.titleWrap}>
         <View style={styles.dot} />
-        <ThemedText type="defaultSemiBold">{campusName}</ThemedText>
+        <ThemedText type="defaultSemiBold" style={styles.campusName}>{campusName}</ThemedText>
       </View>
       <PixelChip label={getLabel(accessState)} tone={tone} />
     </View>
@@ -56,6 +56,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  campusName: {
+    color: RUNABLE_THEME.colors.campusGreen,
+  },
   dot: {
     width: 10,
     height: 10,
@@ -63,7 +66,7 @@ const styles = StyleSheet.create({
     backgroundColor: RUNABLE_THEME.colors.campusGreen,
   },
   active: {
-    borderColor: RUNABLE_THEME.colors.border,
+    borderColor: RUNABLE_THEME.colors.campusGreen,
   },
   preview: {
     borderColor: RUNABLE_THEME.colors.border,

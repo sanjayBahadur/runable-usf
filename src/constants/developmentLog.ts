@@ -131,4 +131,21 @@ export const DEVELOPMENT_LOG = [
       'Invalid loops show clear failure reasons without breaking demo mode',
     ],
   },
+  {
+    module: 'Module 08',
+    title: 'Supabase, Auth & Zustand Store',
+    checklist: [
+      'Zustand app store manages auth state, app mode, user, group, and auth gate visibility',
+      'Supabase client initializes conditionally — app works without env vars in demo mode',
+      'Auth services wrap sign up, sign in, sign out, and session management',
+      'Profile, group, run, territory, issue, sighting, art, feed, and storage services created',
+      'useAuth hook bridges Zustand store with Supabase auth and bootstraps sessions on mount',
+      'Campus mode toggle requires authentication — shows XP-themed auth gate when not logged in',
+      'Login, signup, group picker, and auth gate UI follow the retro XP window theme',
+      'Unauthenticated users see the map in read-only preview mode',
+      'Demo mode remains available without Supabase configuration',
+      'Campus boundary polygon updated from rectangle to road-traced USF shape',
+      'All feed, leaderboard, and dev log screens updated to use consistent XP theme tokens',
+    ],
+  },
 ] as const;

@@ -1,64 +1,99 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Fonts } from '@/constants/theme';
+import { AppShell } from '@/src/components/layout';
+import { RunableCard, XPWindow } from '@/src/components/ui';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import { DEVELOPMENT_LOG } from '@/src/constants';
 
 export default function DevelopmentLogScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#F6EAD7', dark: '#3D2C11' }}
-      headerImage={<View style={styles.headerBlock} />}>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Development Log
-        </ThemedText>
-        <ThemedText>
-          Checklist history for the implemented modules now lives here instead of the main map tab.
-        </ThemedText>
-      </ThemedView>
-      {DEVELOPMENT_LOG.map((entry) => (
-        <ThemedView key={entry.module} style={styles.card}>
-          <ThemedText type="subtitle">
-            {entry.module} - {entry.title}
-          </ThemedText>
-          {entry.checklist.map((item) => (
-            <ThemedText key={item} style={styles.checklistItem}>
-              [x] {item}
+    <AppShell>
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <XPWindow title="Development Log" icon="📋">
+            <ThemedText>
+              Checklist history for the implemented modules. This screen
+              tracks build progress across all Runable systems.
             </ThemedText>
+          </XPWindow>
+
+          {DEVELOPMENT_LOG.map((entry) => (
+            <RunableCard key={entry.module}>
+              <View style={styles.cardHeader}>
+                <ThemedText type="defaultSemiBold" style={styles.moduleLabel}>
+                  {entry.module}
+                </ThemedText>
+                <ThemedText type="defaultSemiBold">{entry.title}</ThemedText>
+              </View>
+              {entry.checklist.map((item) => (
+                <View key={item} style={styles.checkRow}>
+                  <View style={styles.checkBox}>
+                    <ThemedText style={styles.checkMark}>✓</ThemedText>
+                  </View>
+                  <ThemedText style={styles.checkText}>{item}</ThemedText>
+                </View>
+              ))}
+            </RunableCard>
           ))}
-        </ThemedView>
-      ))}
-    </ParallaxScrollView>
+        </ScrollView>
+      </SafeAreaView>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  headerBlock: {
-    position: 'absolute',
-    bottom: 24,
-    left: 28,
-    width: 220,
-    height: 124,
-    borderRadius: 24,
-    backgroundColor: '#CFC493',
+  screen: {
+    flex: 1,
   },
-  titleContainer: {
-    gap: 8,
+  content: {
+    gap: RUNABLE_THEME.spacing.md,
+    padding: RUNABLE_THEME.spacing.md,
+    paddingBottom: RUNABLE_THEME.spacing.xl,
   },
-  card: {
-    gap: 8,
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'rgba(207, 196, 147, 0.16)',
+  cardHeader: {
+    flexDirection: 'row',
+    gap: RUNABLE_THEME.spacing.sm,
+    alignItems: 'center',
+    marginBottom: RUNABLE_THEME.spacing.xs,
   },
-  checklistItem: {
-    lineHeight: 22,
+  moduleLabel: {
+    fontSize: RUNABLE_THEME.fontSizes.xs,
+    paddingHorizontal: RUNABLE_THEME.spacing.xs,
+    paddingVertical: 2,
+    backgroundColor: RUNABLE_THEME.colors.xpBlue,
+    color: '#F8FAFC',
+    borderRadius: RUNABLE_THEME.radii.sm,
+    overflow: 'hidden',
+  },
+  checkRow: {
+    flexDirection: 'row',
+    gap: RUNABLE_THEME.spacing.xs,
+    alignItems: 'flex-start',
+    marginTop: 4,
+  },
+  checkBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 3,
+    borderWidth: 2,
+    borderColor: RUNABLE_THEME.colors.border,
+    backgroundColor: RUNABLE_THEME.colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  checkMark: {
+    fontSize: 11,
+    lineHeight: 14,
+    color: RUNABLE_THEME.colors.campusGreen,
+    fontWeight: '800',
+  },
+  checkText: {
+    flex: 1,
+    fontSize: RUNABLE_THEME.fontSizes.sm,
+    lineHeight: 20,
   },
 });

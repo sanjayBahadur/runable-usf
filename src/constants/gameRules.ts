@@ -2,7 +2,7 @@ export const LOOP_RULES = {
   minPathDistanceMeters: 100,
   minAreaSquareMeters: 400,
   minGpsPoints: 8,
-  closeLoopThresholdMeters: 25,
+  closeLoopThresholdMeters: 35,
   maxAllowedGpsAccuracyMeters: 35,
 } as const;
 

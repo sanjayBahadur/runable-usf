@@ -37,6 +37,23 @@ function getStatusChipTone(status: RunTrackerStatus): 'green' | 'gold' | 'blue' 
   }
 }
 
+function getStatusLabel(status: RunTrackerStatus): string {
+  switch (status) {
+    case 'recording':
+      return '● Recording';
+    case 'paused':
+      return '⏸ Paused';
+    case 'finished':
+      return '✓ Finished';
+    case 'permissionDenied':
+      return '⚠ No GPS';
+    case 'error':
+      return '⚠ Error';
+    default:
+      return 'Ready';
+  }
+}
+
 export function RunStatsPanel({
   status,
   distanceMeters,
@@ -46,13 +63,13 @@ export function RunStatsPanel({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <ThemedText type="defaultSemiBold">Live Run</ThemedText>
-        <PixelChip label={status} tone={getStatusChipTone(status)} />
+        <ThemedText type="defaultSemiBold">🏃 Live Run</ThemedText>
+        <PixelChip label={getStatusLabel(status)} tone={getStatusChipTone(status)} />
       </View>
       <View style={styles.tiles}>
         <StatTile label="Distance" value={formatDistance(distanceMeters)} />
-        <StatTile label="Elapsed" value={formatElapsed(elapsedSeconds)} />
-        <StatTile label="Points" value={pointCount} />
+        <StatTile label="Time" value={formatElapsed(elapsedSeconds)} />
+        <StatTile label="GPS Points" value={pointCount} />
       </View>
     </View>
   );

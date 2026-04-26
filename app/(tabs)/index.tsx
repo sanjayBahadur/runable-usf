@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,46 +12,78 @@ import {
   USF_PREVIEW_REGION,
 } from '@/src/constants';
 import { RUNABLE_THEME } from '@/src/constants/theme';
-import { PixelToolbar } from '@/src/components/art';
+import { AuthGate } from '@/src/components/auth';
 import { CampusGateOverlay, CampusStatusChip, OffCampusBanner } from '@/src/components/campus';
 import { IssueCard, IssueForm } from '@/src/components/issues';
 import { AppShell, MapOverlayShell } from '@/src/components/layout';
 import { CampusMap } from '@/src/components/map';
 import { ActiveRunOverlay, RunSummaryCard } from '@/src/components/run';
-import { ActionDock, type ActionDockItem, GlossyButton, RunableCard, StatTile, XPWindow } from '@/src/components/ui';
+import { ActionDock, type ActionDockItem, GlossyButton, XPWindow } from '@/src/components/ui';
 import { runDemoTerritoryScenario } from '@/src/demo';
 import { completeRunClaim, type CompleteRunClaimResult } from '@/src/features/runs';
 import { getCampusAccessState, getOffCampusMessage } from '@/src/lib/campus';
+import { useAuth } from '@/src/hooks/useAuth';
 import { useIssueReports } from '@/src/hooks/useIssueReports';
 import { usePixelArt } from '@/src/hooks/usePixelArt';
 import { useRunTracker } from '@/src/hooks/useRunTracker';
+import { useAppStore } from '@/src/store/appStore';
 import type { Coordinate } from '@/src/types';
 
 const demoScenario = runDemoTerritoryScenario();
 const onCampusLocation = CAMPUS_CONFIG.center;
 const previewLocation: Coordinate = [28.0575, -82.4358];
-const currentUserGroupId = 'group-bulls';
-const currentUserId = 'user-bulls-demo';
-const paintPalette = ['#F97316', '#0EA5E9', '#FACC15', '#F43F5E', '#22C55E', '#A855F7'];
+const DEMO_GROUP_ID = 'group-bulls';
+const DEMO_USER_ID = 'user-bulls-demo';
 const demoRunPaths = demoScenario.runs.map((run) => run.path.map((point) => point.coordinate));
 
 export default function HomeScreen() {
-  const [simulatedMode, setSimulatedMode] = useState<'campus' | 'preview'>('campus');
+  const auth = useAuth();
+  const appMode = useAppStore((s) => s.appMode);
+  const setAppMode = useAppStore((s) => s.setAppMode);
+  const showAuthGate = useAppStore((s) => s.showAuthGate);
+  const setShowAuthGate = useAppStore((s) => s.setShowAuthGate);
+
+  // Derive user/group IDs: use auth if logged in, otherwise demo defaults
+  const currentUserId = auth.user?.id ?? DEMO_USER_ID;
+  const currentUserGroupId = auth.user?.homeGroupId ?? DEMO_GROUP_ID;
+
+  // Guest mode = not authenticated (demo or preview)
+  const isGuest = !auth.isAuthenticated;
+
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [draftIssueCoordinate, setDraftIssueCoordinate] = useState<Coordinate | null>(null);
-  const [paintModeActive, setPaintModeActive] = useState(false);
   const [campusGateMessage, setCampusGateMessage] = useState<string | null>(null);
   const [territoryScores, setTerritoryScores] = useState(demoScenario.scores);
   const [territoryOwnership, setTerritoryOwnership] = useState(demoScenario.ownership);
   const [runSummary, setRunSummary] = useState<CompleteRunClaimResult | null>(null);
+  const [showedInitialAuth, setShowedInitialAuth] = useState(false);
+  const [simulatorActive, setSimulatorActive] = useState(false);
 
-  const simulatedUserLocation = simulatedMode === 'campus' ? onCampusLocation : previewLocation;
+  const isCampusMode = appMode === 'campus';
+  const simulatedUserLocation = isCampusMode ? onCampusLocation : previewLocation;
   const accessState = getCampusAccessState(simulatedUserLocation);
-  const previewModeActive = accessState !== 'onCampus';
+  const previewModeActive = !isCampusMode || accessState !== 'onCampus';
   const initialRegion = previewModeActive ? USF_PREVIEW_REGION : USF_INITIAL_REGION;
   const currentGroupName =
     demoScenario.groups.find((group) => group.id === currentUserGroupId)?.name ?? currentUserGroupId;
+
+  // Show auth gate on first launch
+  useEffect(() => {
+    if (!showedInitialAuth && auth.authState !== 'loading') {
+      setShowedInitialAuth(true);
+      if (!auth.isAuthenticated) {
+        setShowAuthGate(true);
+      }
+    }
+  }, [auth.authState, auth.isAuthenticated, showedInitialAuth, setShowAuthGate]);
+
+  // Auto-switch to campus mode if authenticated and on campus
+  useEffect(() => {
+    if (auth.isAuthenticated && accessState === 'onCampus') {
+      setAppMode('campus');
+    }
+  }, [auth.isAuthenticated, accessState, setAppMode]);
 
   const { issues, reportIssue, markIssueFixed } = useIssueReports({
     initialIssues: demoScenario.issues,
@@ -73,69 +105,59 @@ export default function HomeScreen() {
     [issues, selectedIssueId],
   );
 
-  const openIssues = issues.filter((issue) => issue.status === 'open');
-  const fixedIssues = issues.filter((issue) => issue.status === 'fixed');
-
   function showSelection(message: string) {
     setSelectedMessage(message);
   }
 
-  function requireCampusForAction(message: string): boolean {
-    if (!previewModeActive) {
-      return false;
+  function requireAuth(message: string): boolean {
+    if (isGuest) {
+      setCampusGateMessage(message);
+      showSelection(message);
+      setShowAuthGate(true);
+      return true;
     }
+    return false;
+  }
 
-    setCampusGateMessage(message);
-    showSelection(message);
-    return true;
+  function requireCampusForAction(message: string): boolean {
+    if (isGuest) {
+      return requireAuth('Sign in to access this feature. Guests can view the map but cannot interact.');
+    }
+    if (previewModeActive) {
+      setCampusGateMessage(message);
+      showSelection(message);
+      return true;
+    }
+    return false;
   }
 
   function handleCellPress(cellId: string) {
-    if (!paintModeActive) {
-      showSelection(`Selected ${cellId}. Enable Paint to color owned cells.`);
-      return;
-    }
-
-    const cellOwnership = territoryOwnership.find((cell) => cell.cellId === cellId);
-    if (!cellOwnership) {
-      return;
-    }
-
-    const paintResult = paintCell(cellId);
-
-    if (paintResult.painted) {
-      showSelection(`Painted ${cellId} with ${selectedColor} for ${currentGroupName}.`);
-      return;
-    }
-
-    const groupName =
-      demoScenario.groups.find((group) => group.id === cellOwnership.groupId)?.name ??
-      cellOwnership.groupId;
-    showSelection(`Cannot paint ${cellId}. ${groupName} owns that cell.`);
+    showSelection(`Selected cell ${cellId}.`);
   }
 
   function handleIssuePress(issueId: string) {
     const issue = issues.find((entry) => entry.id === issueId);
-    if (!issue) {
-      return;
-    }
+    if (!issue) return;
 
-    setPaintModeActive(false);
     setDraftIssueCoordinate(null);
     setSelectedIssueId(issueId);
     showSelection(`Issue selected: ${issue.title} (${issue.status}, ${issue.category}).`);
   }
 
   function handleMapLongPress(coordinate: Coordinate) {
+    if (simulatorActive && runTracker.status === 'recording') {
+      runTracker.addSimulatedPoint(coordinate);
+      return;
+    }
+
     if (
       requireCampusForAction(
-        'Issue reporting is campus-first. Preview mode still lets you inspect the board, pins, and demo territory.',
+        'Issue reporting is campus-first. Switch to campus mode to start reporting.',
       )
     ) {
       return;
     }
 
-    setPaintModeActive(false);
     setSelectedIssueId(null);
     setDraftIssueCoordinate(coordinate);
     showSelection(
@@ -146,7 +168,6 @@ export default function HomeScreen() {
   function handleReportIssue(input: Parameters<typeof reportIssue>[0]) {
     const result = reportIssue(input);
     setDraftIssueCoordinate(null);
-    setPaintModeActive(false);
     setSelectedIssueId(result.issue.id);
     showSelection(
       `Reported "${result.issue.title}" for ${result.pointsAwarded} pts. Pin added in red.`,
@@ -156,11 +177,8 @@ export default function HomeScreen() {
 
   function handleFixIssue(issueId: string, afterPhotoUri?: string) {
     const result = markIssueFixed(issueId, afterPhotoUri);
-    if (!result) {
-      return;
-    }
+    if (!result) return;
 
-    setPaintModeActive(false);
     setSelectedIssueId(result.issue.id);
     showSelection(
       `Fixed "${result.issue.title}" for ${result.pointsAwarded} pts. Pin turned green.`,
@@ -170,11 +188,8 @@ export default function HomeScreen() {
 
   function handleSightingPress(sightingId: string) {
     const sighting = demoScenario.sightings.find((entry) => entry.id === sightingId);
-    if (!sighting) {
-      return;
-    }
+    if (!sighting) return;
 
-    setPaintModeActive(false);
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
     showSelection(`Sighting: ${sighting.title} (${sighting.category}).`);
@@ -182,27 +197,56 @@ export default function HomeScreen() {
   }
 
   function toggleSimulatedMode() {
-    setCampusGateMessage(null);
-    setPaintModeActive(false);
-    setSelectedIssueId(null);
-    setDraftIssueCoordinate(null);
-    setRunSummary(null);
-    setSimulatedMode((existing) => (existing === 'campus' ? 'preview' : 'campus'));
+    if (isCampusMode) {
+      setCampusGateMessage(null);
+      setSelectedIssueId(null);
+      setDraftIssueCoordinate(null);
+      setRunSummary(null);
+      setAppMode('preview');
+      return;
+    }
+
+    const granted = auth.requestCampusMode();
+    if (granted) {
+      setCampusGateMessage(null);
+      setSelectedIssueId(null);
+      setDraftIssueCoordinate(null);
+      setRunSummary(null);
+    }
+  }
+
+  function toggleSimulatorMode() {
+    setSimulatorActive((prev) => {
+      const next = !prev;
+      if (next) {
+        showSelection('Simulator active. Tap "Simulate Run" and then click the map to draw your route.');
+      } else {
+        showSelection('Simulator disabled. Regular GPS tracking restored.');
+      }
+      return next;
+    });
   }
 
   async function handleStartRun() {
-    if (
-      requireCampusForAction(
-        'Real GPS run tracking is campus-only. Switch back to campus mode to start recording a live run.',
-      )
-    ) {
+    if (requireCampusForAction('Sign in and switch to campus mode to start a live run.')) {
       return;
     }
 
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
-    setPaintModeActive(false);
     setRunSummary(null);
+
+    if (simulatorActive) {
+      const started = runTracker.startSimulatedRun();
+      if (started) {
+        if (runTracker.currentLocation) {
+          runTracker.addSimulatedPoint(runTracker.currentLocation);
+        }
+        showSelection('Simulated run started. Tap the map to start plotting GPS points.');
+      }
+      return;
+    }
+
     const started = await runTracker.startRun();
     if (started) {
       showSelection('Live run started. Move around campus to record GPS points.');
@@ -216,9 +260,7 @@ export default function HomeScreen() {
 
   function handleFinishRun() {
     const completedRun = runTracker.finishRun();
-    if (!completedRun) {
-      return;
-    }
+    if (!completedRun) return;
 
     const result = completeRunClaim({
       runSession: completedRun,
@@ -247,30 +289,7 @@ export default function HomeScreen() {
     showSelection('Live run canceled.');
   }
 
-  function togglePaintMode() {
-    if (
-      requireCampusForAction(
-        'Painting is campus-only right now. Continue exploring in preview mode or switch back to campus mode.',
-      )
-    ) {
-      return;
-    }
-
-    setSelectedIssueId(null);
-    setDraftIssueCoordinate(null);
-    setPaintModeActive((current) => {
-      const next = !current;
-      showSelection(
-        next
-          ? `${currentGroupName} can paint owned cells only. Tap a cell to paint it.`
-          : 'Paint mode closed.',
-      );
-      return next;
-    });
-  }
-
   function closePanel() {
-    setPaintModeActive(false);
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
     setRunSummary(null);
@@ -279,16 +298,27 @@ export default function HomeScreen() {
   function promptIssuePinning() {
     if (
       requireCampusForAction(
-        'Issue reporting is currently gated to campus mode. Preview mode still lets you inspect the board and demo pins.',
+        'Issue reporting requires campus mode. Sign in and switch to campus to start.',
       )
     ) {
       return;
     }
 
-    setPaintModeActive(false);
     setSelectedIssueId(null);
     setDraftIssueCoordinate(null);
     showSelection('Long press the board to pin a new issue report.');
+  }
+
+  function promptSightingRegistration() {
+    if (
+      requireCampusForAction(
+        'Sighting registration requires campus mode. Sign in and switch to campus.',
+      )
+    ) {
+      return;
+    }
+
+    showSelection('Tap a sighting pin to inspect it, or long press to register a new one.');
   }
 
   const hasActiveRunPanel =
@@ -299,7 +329,6 @@ export default function HomeScreen() {
 
   const panelVisible =
     hasActiveRunPanel ||
-    paintModeActive ||
     Boolean(draftIssueCoordinate) ||
     Boolean(selectedIssue) ||
     Boolean(runSummary);
@@ -331,22 +360,19 @@ export default function HomeScreen() {
       : [
           {
             label:
-              runTracker.status === 'permissionDenied' || runTracker.status === 'error'
+              !simulatorActive && (runTracker.status === 'permissionDenied' || runTracker.status === 'error')
                 ? 'Enable GPS'
-                : 'Start Run',
+                : simulatorActive
+                  ? 'Simulate Run'
+                  : 'Start Run',
             onPress: handleStartRun,
-            tone: 'primary' as const,
+            tone: simulatorActive ? 'secondary' : 'primary',
           },
-          { label: 'Report', onPress: promptIssuePinning, tone: 'secondary' as const },
+          { label: 'Report Issue', onPress: promptIssuePinning, tone: 'secondary' as const },
           {
-            label: 'Sighting',
-            onPress: () => showSelection('Tap a sighting pin to inspect demo sightings.'),
+            label: 'Register Sighting',
+            onPress: promptSightingRegistration,
             tone: 'secondary' as const,
-          },
-          {
-            label: 'Paint',
-            onPress: togglePaintMode,
-            tone: paintModeActive ? ('danger' as const) : ('primary' as const),
           },
         ];
 
@@ -365,6 +391,8 @@ export default function HomeScreen() {
             issues={issues}
             sightings={demoScenario.sightings}
             groups={demoScenario.groups}
+            simulatorActive={simulatorActive}
+            onToggleSimulator={toggleSimulatorMode}
             onCellPress={handleCellPress}
             onIssuePress={handleIssuePress}
             onSightingPress={handleSightingPress}
@@ -378,20 +406,18 @@ export default function HomeScreen() {
               <View style={styles.topRow}>
                 <CampusStatusChip campusName={USF_CAMPUS_NAME} accessState={accessState} />
                 <GlossyButton
-                  label={simulatedMode === 'campus' ? 'Preview' : 'Campus'}
+                  label={isCampusMode ? 'Preview' : 'Campus'}
                   onPress={toggleSimulatedMode}
-                  tone="secondary"
+                  tone={isCampusMode ? 'secondary' : 'dark'}
                   compact
                 />
               </View>
-              <RunableCard>
-                <View style={styles.metricRow}>
-                  <StatTile label="Open" value={openIssues.length} />
-                  <StatTile label="Fixed" value={fixedIssues.length} />
-                  <StatTile label="Painted" value={visibleCellArt.length} />
-                </View>
-              </RunableCard>
               {previewModeActive ? <OffCampusBanner message={getOffCampusMessage(accessState)} /> : null}
+              {isGuest ? (
+                <OffCampusBanner
+                  message="👋 Viewing as guest. Sign in to run, report, and claim territory."
+                />
+              ) : null}
             </>
           }
           toast={
@@ -408,25 +434,12 @@ export default function HomeScreen() {
               <XPWindow
                 title={
                   hasActiveRunPanel
-                    ? 'Live Run'
+                    ? '🏃 Live Run'
                     : draftIssueCoordinate
-                      ? 'Report Issue'
+                      ? '📋 Report Issue'
                       : selectedIssue
-                        ? 'Issue Details'
-                        : paintModeActive
-                          ? 'Paint'
-                          : 'Run Summary'
-                }
-                icon={
-                  hasActiveRunPanel
-                    ? 'R'
-                    : draftIssueCoordinate
-                      ? '+'
-                      : selectedIssue
-                        ? 'i'
-                        : paintModeActive
-                          ? 'P'
-                          : 'S'
+                        ? '📋 Issue Details'
+                        : '🏁 Run Summary'
                 }
                 action={
                   hasActiveRunPanel ? undefined : (
@@ -462,14 +475,6 @@ export default function HomeScreen() {
                     />
                   ) : selectedIssue ? (
                     <IssueCard issue={selectedIssue} onFixIssue={handleFixIssue} />
-                  ) : paintModeActive ? (
-                    <PixelToolbar
-                      colors={paintPalette}
-                      selectedColor={selectedColor}
-                      paintedCount={visibleCellArt.length}
-                      currentGroupName={currentGroupName}
-                      onSelectColor={setSelectedColor}
-                    />
                   ) : runSummary ? (
                     <RunSummaryCard
                       runSession={runSummary.runSession}
@@ -494,6 +499,20 @@ export default function HomeScreen() {
             ) : null
           }
         />
+
+        {showAuthGate ? (
+          <AuthGate
+            onLogin={auth.signIn}
+            onSignup={auth.signUp}
+            onDemoMode={() => {
+              auth.dismissAuthGate();
+              setAppMode('demo');
+            }}
+            onDismiss={auth.dismissAuthGate}
+            loading={auth.loading}
+            error={auth.error}
+          />
+        ) : null}
       </SafeAreaView>
     </AppShell>
   );
@@ -510,11 +529,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: RUNABLE_THEME.spacing.sm,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: RUNABLE_THEME.spacing.sm,
   },
   panelBody: {

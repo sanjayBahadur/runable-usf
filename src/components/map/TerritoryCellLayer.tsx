@@ -6,6 +6,7 @@ type TerritoryCellLayerProps = {
   cells: CampusCell[];
   ownership: CellOwnership[];
   groups: Group[];
+  simulatorActive?: boolean;
   onCellPress?: (cellId: string) => void;
 };
 
@@ -30,6 +31,7 @@ export function TerritoryCellLayer({
   cells,
   ownership,
   groups,
+  simulatorActive,
   onCellPress,
 }: TerritoryCellLayerProps) {
   const ownershipByCellId = new Map(ownership.map((entry) => [entry.cellId, entry]));
@@ -40,18 +42,25 @@ export function TerritoryCellLayer({
       {cells.map((cell) => {
         const cellOwnership = ownershipByCellId.get(cell.id);
 
-        if (!cellOwnership) {
+        if (!cellOwnership && !simulatorActive) {
           return null;
         }
 
-        const groupColor = groupColorsById.get(cellOwnership.groupId) ?? '#334155';
+        let groupColor = '#334155'; // default/unowned color
+        if (cellOwnership) {
+          groupColor = groupColorsById.get(cellOwnership.groupId) ?? '#334155';
+        }
+
+        // In simulator mode, unowned cells should be faintly visible to draw the route accurately.
+        const fillColor = cellOwnership ? toCellFillColor(groupColor) : 'rgba(0, 0, 0, 0.08)';
+        const strokeColor = cellOwnership ? groupColor : 'rgba(0, 0, 0, 0.3)';
 
         return (
           <Polygon
             key={cell.id}
             coordinates={cell.polygon.map(toMapCoordinate)}
-            fillColor={toCellFillColor(groupColor)}
-            strokeColor={groupColor}
+            fillColor={fillColor}
+            strokeColor={strokeColor}
             strokeWidth={0.5}
             tappable={Boolean(onCellPress)}
             onPress={() => onCellPress?.(cell.id)}

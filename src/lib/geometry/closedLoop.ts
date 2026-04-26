@@ -20,9 +20,21 @@ function toCoordinate(point: PathPoint): Coordinate {
 export function detectClosedLoop(path: PathPoint[], rules: ClosedLoopRules): ClosedLoopResult {
   const coordinates = path.map(toCoordinate);
   const pointCount = coordinates.length;
+  let minClosingDist = Infinity;
+  if (pointCount >= 2) {
+    const lastCoord = coordinates[pointCount - 1];
+    // Check against the first 30% of the path to see if they closed it anywhere near the start
+    const checkUntil = Math.max(1, Math.floor(pointCount * 0.3));
+    for (let i = 0; i < checkUntil; i++) {
+      const dist = calculateDistanceMeters(coordinates[i], lastCoord);
+      if (dist < minClosingDist) {
+        minClosingDist = dist;
+      }
+    }
+  }
+  
   const totalDistanceMeters = calculatePathDistanceMeters(coordinates);
-  const closingDistanceMeters =
-    pointCount >= 2 ? calculateDistanceMeters(coordinates[0], coordinates[pointCount - 1]) : Infinity;
+  const closingDistanceMeters = minClosingDist;
   const enclosedAreaSquareMeters =
     pointCount >= 3 ? calculatePolygonAreaSquareMeters(coordinates) : 0;
   const isClosed = closingDistanceMeters <= rules.closeLoopThresholdMeters;

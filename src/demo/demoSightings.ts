@@ -15,7 +15,7 @@ export const demoSightings: Sighting[] = [
     title: 'Bull statue meetup point',
     description: 'Useful landmark for demo route orientation.',
     category: 'landmark',
-    coordinate: [28.0584, -82.418],
+    coordinate: [28.0584, -82.4155],
     reportedByUserId: 'user-bulls-04',
     createdAt: '2026-04-25T11:52:00.000Z',
   },

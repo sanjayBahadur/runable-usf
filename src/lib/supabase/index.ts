@@ -1,0 +1,11 @@
+export { supabase, isSupabaseConfigured } from '@/src/lib/supabase/client';
+export { signUpWithEmail, signInWithEmail, signOut, getCurrentSession, onAuthStateChange } from '@/src/lib/supabase/authService';
+export { getUserProfile, updateUserProfile } from '@/src/lib/supabase/userService';
+export { getGroups, createGroup, joinGroup } from '@/src/lib/supabase/groupService';
+export { uploadImage } from '@/src/lib/supabase/storageService';
+export { saveRun, getRuns } from '@/src/lib/supabase/runService';
+export { saveClaim, saveCellScores, saveCellOwnership, getCellOwnership } from '@/src/lib/supabase/territoryService';
+export { createIssue, updateIssue, getIssues } from '@/src/lib/supabase/issueService';
+export { createSighting, getSightings } from '@/src/lib/supabase/sightingService';
+export { saveCellArt, getCellArt } from '@/src/lib/supabase/artService';
+export { insertFeedItem, getFeedItems } from '@/src/lib/supabase/feedService';

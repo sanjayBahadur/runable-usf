@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 
 type LikeButtonProps = {
   liked: boolean;
@@ -10,20 +11,39 @@ type LikeButtonProps = {
 
 export function LikeButton({ liked, likeCount, onPress }: LikeButtonProps) {
   return (
-    <Pressable onPress={onPress} style={[styles.button, liked ? styles.active : undefined]}>
-      <ThemedText>{liked ? 'Liked' : 'Like'} {likeCount}</ThemedText>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.button,
+        liked ? styles.active : styles.inactive,
+        pressed ? styles.pressed : null,
+      ]}>
+      <ThemedText
+        type="defaultSemiBold"
+        lightColor={liked ? '#F8FAFC' : RUNABLE_THEME.colors.ink}
+        darkColor={liked ? '#F8FAFC' : '#CBD5E1'}>
+        {liked ? '♥ Liked' : '♡ Like'} {likeCount > 0 ? likeCount : ''}
+      </ThemedText>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    paddingHorizontal: 10,
+    paddingHorizontal: RUNABLE_THEME.spacing.sm,
     paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
+    borderRadius: RUNABLE_THEME.radii.sm,
+    borderWidth: 2,
+    borderColor: RUNABLE_THEME.colors.border,
   },
   active: {
-    backgroundColor: 'rgba(14, 165, 233, 0.16)',
+    backgroundColor: RUNABLE_THEME.colors.xpBlue,
+  },
+  inactive: {
+    backgroundColor: RUNABLE_THEME.colors.cream,
+  },
+  pressed: {
+    transform: [{ translateY: 1 }],
+    backgroundColor: RUNABLE_THEME.colors.windowGray,
   },
 });

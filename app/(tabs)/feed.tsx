@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import { FeedItemCard, FeedTabs } from '@/src/components/feed';
 import {
   GroupLeaderboard,
@@ -11,6 +12,8 @@ import {
   type LeaderboardTabKey,
   UserLeaderboard,
 } from '@/src/components/leaderboard';
+import { AppShell } from '@/src/components/layout';
+import { RunableCard, StatTile, XPWindow } from '@/src/components/ui';
 import { demoGroups } from '@/src/demo';
 import { buildDemoFeedEvents, getDemoUserNames, getVisibleFeedItems } from '@/src/lib/feed';
 import { buildDemoLeaderboards } from '@/src/lib/leaderboard';
@@ -62,47 +65,50 @@ export default function FeedScreen() {
   })();
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <ThemedText type="title">Campus Pulse</ThemedText>
-          <ThemedText>
-            Local demo feed and leaderboards built from runs, claims, issues, sightings, and art.
-          </ThemedText>
-        </View>
-
-        <FeedTabs activeTab={activeTab} onChange={setActiveTab} />
-
-        {activeTab === 'feed' ? (
-          <View style={styles.section}>
-            <ThemedText type="subtitle">Activity Feed</ThemedText>
-            {feedItems.map((item) => (
-              <FeedItemCard
-                key={item.id}
-                item={item}
-                liked={Boolean(liked[item.id])}
-                likeCount={likes[item.id] ?? 0}
-                comments={comments[item.id] ?? []}
-                actorName={userNames.get(item.actorUserId)}
-                onToggleLike={() => toggleLike(item.id)}
-                onAddComment={(comment) => addComment(item.id, comment)}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.section}>
-            <View style={styles.statsCard}>
-              <ThemedText type="defaultSemiBold">Leaderboard Snapshot</ThemedText>
-              <ThemedText>Feed events: {leaderboards.feedCount}</ThemedText>
-              <ThemedText>Groups tracked: {leaderboards.topGroups.length}</ThemedText>
-              <ThemedText>Users ranked: {leaderboards.topUsers.length}</ThemedText>
+    <AppShell>
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <XPWindow title="Campus Pulse" icon="📡">
+            <View style={styles.headerBody}>
+              <ThemedText>
+                Local demo feed and leaderboards built from runs, claims, issues, sightings, and art.
+              </ThemedText>
             </View>
-            <LeaderboardTabs activeTab={activeLeaderboard} onChange={setActiveLeaderboard} />
-            {leaderboardContent}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          </XPWindow>
+
+          <FeedTabs activeTab={activeTab} onChange={setActiveTab} />
+
+          {activeTab === 'feed' ? (
+            <View style={styles.section}>
+              {feedItems.map((item) => (
+                <FeedItemCard
+                  key={item.id}
+                  item={item}
+                  liked={Boolean(liked[item.id])}
+                  likeCount={likes[item.id] ?? 0}
+                  comments={comments[item.id] ?? []}
+                  actorName={userNames.get(item.actorUserId)}
+                  onToggleLike={() => toggleLike(item.id)}
+                  onAddComment={(comment) => addComment(item.id, comment)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <RunableCard>
+                <View style={styles.statsRow}>
+                  <StatTile label="Events" value={leaderboards.feedCount} />
+                  <StatTile label="Groups" value={leaderboards.topGroups.length} />
+                  <StatTile label="Users" value={leaderboards.topUsers.length} />
+                </View>
+              </RunableCard>
+              <LeaderboardTabs activeTab={activeLeaderboard} onChange={setActiveLeaderboard} />
+              {leaderboardContent}
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </AppShell>
   );
 }
 
@@ -111,19 +117,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    gap: 14,
-    padding: 16,
+    gap: RUNABLE_THEME.spacing.md,
+    padding: RUNABLE_THEME.spacing.md,
+    paddingBottom: RUNABLE_THEME.spacing.xl,
   },
-  header: {
-    gap: 8,
+  headerBody: {
+    gap: RUNABLE_THEME.spacing.xs,
   },
   section: {
-    gap: 12,
+    gap: RUNABLE_THEME.spacing.sm,
   },
-  statsCard: {
-    gap: 8,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 103, 71, 0.08)',
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: RUNABLE_THEME.spacing.sm,
   },
 });

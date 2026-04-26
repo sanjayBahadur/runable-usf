@@ -32,10 +32,11 @@ const styles = StyleSheet.create({
   value: {
     fontSize: RUNABLE_THEME.fontSizes.lg,
     lineHeight: 22,
+    color: RUNABLE_THEME.colors.ink,
   },
   label: {
     fontSize: RUNABLE_THEME.fontSizes.xs,
     lineHeight: 16,
-    color: RUNABLE_THEME.colors.mutedInk,
+    color: RUNABLE_THEME.colors.ink,
   },
 });

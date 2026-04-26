@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 
 export type LeaderboardTabKey =
   | 'topGroups'
@@ -15,41 +16,60 @@ type LeaderboardTabsProps = {
 };
 
 const tabs: { key: LeaderboardTabKey; label: string }[] = [
-  { key: 'topGroups', label: 'Top Groups' },
-  { key: 'topUsers', label: 'Top Users' },
-  { key: 'mostIssuesFixed', label: 'Issues Fixed' },
-  { key: 'mostCellsOwned', label: 'Cells Owned' },
-  { key: 'mostSightingsAdded', label: 'Sightings' },
+  { key: 'topGroups', label: 'Groups' },
+  { key: 'topUsers', label: 'Users' },
+  { key: 'mostIssuesFixed', label: 'Fixes' },
+  { key: 'mostCellsOwned', label: 'Cells' },
+  { key: 'mostSightingsAdded', label: 'Sights' },
 ];
 
 export function LeaderboardTabs({ activeTab, onChange }: LeaderboardTabsProps) {
   return (
-    <View style={styles.container}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.container}>
       {tabs.map((tab) => (
         <Pressable
           key={tab.key}
           onPress={() => onChange(tab.key)}
-          style={[styles.tab, activeTab === tab.key ? styles.activeTab : undefined]}>
-          <ThemedText>{tab.label}</ThemedText>
+          style={({ pressed }) => [
+            styles.tab,
+            activeTab === tab.key ? styles.activeTab : styles.inactiveTab,
+            pressed ? styles.pressed : null,
+          ]}>
+          <ThemedText
+            type="defaultSemiBold"
+            lightColor={activeTab === tab.key ? '#F8FAFC' : RUNABLE_THEME.colors.ink}
+            darkColor={activeTab === tab.key ? '#F8FAFC' : '#CBD5E1'}>
+            {tab.label}
+          </ThemedText>
         </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: RUNABLE_THEME.spacing.xs,
+    paddingVertical: 2,
   },
   tab: {
-    paddingHorizontal: 12,
+    paddingHorizontal: RUNABLE_THEME.spacing.sm,
     paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15,23,42,0.08)',
+    borderRadius: RUNABLE_THEME.radii.sm,
+    borderWidth: 2,
+    borderColor: RUNABLE_THEME.colors.border,
   },
   activeTab: {
-    backgroundColor: 'rgba(0,103,71,0.12)',
+    backgroundColor: RUNABLE_THEME.colors.xpBlue,
+  },
+  inactiveTab: {
+    backgroundColor: RUNABLE_THEME.colors.cream,
+  },
+  pressed: {
+    transform: [{ translateY: 1 }],
   },
 });

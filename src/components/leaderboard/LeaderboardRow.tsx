@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 import type { LeaderboardEntry } from '@/src/types';
 
 type LeaderboardRowProps = {
@@ -10,10 +11,12 @@ type LeaderboardRowProps = {
 
 export function LeaderboardRow({ entry, highlighted }: LeaderboardRowProps) {
   return (
-    <View style={[styles.row, highlighted ? styles.highlighted : undefined]}>
-      <ThemedText type="defaultSemiBold">#{entry.rank}</ThemedText>
+    <View style={[styles.row, highlighted ? styles.highlighted : null]}>
+      <View style={styles.rank}>
+        <ThemedText type="defaultSemiBold">#{entry.rank}</ThemedText>
+      </View>
       <View style={styles.body}>
-        <ThemedText>{entry.displayName}</ThemedText>
+        <ThemedText type="defaultSemiBold">{entry.displayName}</ThemedText>
         <ThemedText>{entry.points}</ThemedText>
       </View>
     </View>
@@ -23,19 +26,27 @@ export function LeaderboardRow({ entry, highlighted }: LeaderboardRowProps) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: RUNABLE_THEME.spacing.sm,
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: RUNABLE_THEME.spacing.sm,
+    borderRadius: RUNABLE_THEME.radii.sm,
+    backgroundColor: RUNABLE_THEME.colors.paper,
+    borderWidth: 2,
+    borderColor: RUNABLE_THEME.colors.border,
+    ...RUNABLE_THEME.shadows.soft,
+  },
+  rank: {
+    width: 36,
+    alignItems: 'center',
   },
   body: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: RUNABLE_THEME.spacing.xs,
   },
   highlighted: {
-    backgroundColor: 'rgba(0, 103, 71, 0.12)',
+    backgroundColor: RUNABLE_THEME.colors.cream,
+    borderColor: RUNABLE_THEME.colors.campusGreen,
   },
 });

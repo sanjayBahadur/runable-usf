@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { RUNABLE_THEME } from '@/src/constants/theme';
 
 type CommentListProps = {
   comments: string[];
@@ -8,7 +9,9 @@ type CommentListProps = {
 
 export function CommentList({ comments }: CommentListProps) {
   if (comments.length === 0) {
-    return <ThemedText>No comments yet.</ThemedText>;
+    return (
+      <ThemedText style={styles.empty}>No comments yet.</ThemedText>
+    );
   }
 
   return (
@@ -24,11 +27,17 @@ export function CommentList({ comments }: CommentListProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: RUNABLE_THEME.spacing.xs,
   },
   comment: {
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+    padding: RUNABLE_THEME.spacing.sm,
+    borderRadius: RUNABLE_THEME.radii.sm,
+    backgroundColor: RUNABLE_THEME.colors.cream,
+    borderWidth: 1,
+    borderColor: RUNABLE_THEME.colors.border,
+  },
+  empty: {
+    color: RUNABLE_THEME.colors.ink,
+    fontSize: RUNABLE_THEME.fontSizes.sm,
   },
 });
