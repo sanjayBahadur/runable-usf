@@ -6,6 +6,7 @@ export type CampusCell = {
   column: number;
   center: Coordinate;
   sizeMeters: number;
+  polygon: Coordinate[];
 };
 
 export type ClaimPolygon = {
