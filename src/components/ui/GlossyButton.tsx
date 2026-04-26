@@ -8,6 +8,7 @@ type GlossyButtonProps = {
   onPress: () => void;
   tone?: 'primary' | 'secondary' | 'danger' | 'dark';
   compact?: boolean;
+  disabled?: boolean;
 };
 
 export function GlossyButton({
@@ -15,15 +16,18 @@ export function GlossyButton({
   onPress,
   tone = 'primary',
   compact = false,
+  disabled = false,
 }: GlossyButtonProps) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
         styles[tone],
         compact ? styles.compact : null,
         pressed ? styles.pressed : null,
+        disabled ? { opacity: 0.5 } : null,
       ]}>
       <ThemedText
         type="defaultSemiBold"

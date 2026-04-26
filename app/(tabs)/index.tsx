@@ -115,6 +115,8 @@ export default function HomeScreen() {
     [issues, selectedIssueId],
   );
 
+  const openIssues = useMemo(() => issues.filter((i) => i.status === 'open'), [issues]);
+
   const selectedSighting = useMemo(
     () => sightings.find((entry) => entry.id === selectedSightingId) ?? null,
     [sightings, selectedSightingId],
@@ -406,7 +408,7 @@ export default function HomeScreen() {
             cells={demoScenario.cells}
             cellArt={visibleCellArt}
             ownership={territoryOwnership}
-            issues={issues}
+            issues={openIssues}
             sightings={sightings}
             groups={demoScenario.groups}
             simulatorActive={simulatorActive}
@@ -570,6 +572,6 @@ const styles = StyleSheet.create({
   },
   panelBody: {
     gap: RUNABLE_THEME.spacing.sm,
-    paddingBottom: 4,
+    paddingBottom: 150,
   },
 });

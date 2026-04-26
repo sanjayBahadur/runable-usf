@@ -1,5 +1,6 @@
 import { Text } from 'react-native';
 import { Circle, Marker } from 'react-native-maps';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 import type { Coordinate } from '@/src/types';
 
@@ -23,7 +24,7 @@ export function UserLocationMarker({ userLocation }: UserLocationMarkerProps) {
         strokeColor="rgba(37, 99, 235, 0.5)"
       />
       <Marker coordinate={coordinate} title="You" anchor={{ x: 0.5, y: 0.5 }}>
-        <Text style={{ fontSize: 24, textAlign: 'center' }}>🏃🏿‍♂️</Text>
+        <FontAwesome5 name="running" size={20} color="#000" />
       </Marker>
     </>
   );

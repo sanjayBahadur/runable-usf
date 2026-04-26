@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import MapView, { type LongPressEvent, type MapPressEvent, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -196,28 +197,21 @@ export function CampusMap({
             pressed ? styles.mapButtonPressed : null,
             simulatorActive ? styles.simulatorActiveButton : null,
           ]}>
-          <ThemedText style={styles.mapButtonText}>🕹️</ThemedText>
+          <FontAwesome5 name="gamepad" size={16} color={simulatorActive ? '#2563EB' : '#334155'} />
         </Pressable>
 
         {/* My Location button */}
         <Pressable
           onPress={goToMyLocation}
           style={({ pressed }) => [styles.mapButton, pressed ? styles.mapButtonPressed : null]}>
-          <View style={styles.locationIcon}>
-            <View style={styles.locationDot} />
-            <View style={styles.locationRing} />
-            <View style={[styles.locationArrow, styles.arrowTop]} />
-            <View style={[styles.locationArrow, styles.arrowRight]} />
-            <View style={[styles.locationArrow, styles.arrowBottom]} />
-            <View style={[styles.locationArrow, styles.arrowLeft]} />
-          </View>
+          <FontAwesome5 name="crosshairs" size={18} color="#2563EB" />
         </Pressable>
 
         {/* Recenter button */}
         <Pressable
           onPress={recenterToCampus}
           style={({ pressed }) => [styles.mapButton, pressed ? styles.mapButtonPressed : null]}>
-          <ThemedText style={styles.mapButtonText}>⌂</ThemedText>
+          <FontAwesome5 name="home" size={16} color="#334155" />
         </Pressable>
       </View>
     </View>

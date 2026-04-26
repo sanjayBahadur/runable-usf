@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { PixelChip } from '@/src/components/ui';
@@ -32,10 +33,17 @@ export function SightingCard({ sighting }: SightingCardProps) {
         </View>
       )}
 
-      {/* Mock photo block if one hypothetically existed or they attached one */}
-      <View style={styles.photoMock}>
-        <ThemedText style={{ color: '#94A3B8' }}>[ Attached Photo ]</ThemedText>
-      </View>
+      {sighting.photoUri ? (
+        sighting.photoUri.startsWith('demo://') ? (
+          <View style={styles.photoMock}>
+            <ThemedText style={{ color: '#94A3B8' }}>{sighting.photoUri}</ThemedText>
+          </View>
+        ) : (
+          <View style={styles.imageWrap}>
+            <Image source={{ uri: sighting.photoUri }} style={styles.image} contentFit="contain" />
+          </View>
+        )
+      ) : null}
     </View>
   );
 }
@@ -74,5 +82,17 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  imageWrap: {
+    height: 180,
+    width: '100%',
+    borderRadius: RUNABLE_THEME.radii.sm,
+    backgroundColor: '#0F172A',
+    overflow: 'hidden',
+  },
+  image: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
 });

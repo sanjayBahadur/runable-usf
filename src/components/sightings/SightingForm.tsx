@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 
 import { SIGHTING_CATEGORIES, SightingCategoryPicker } from '@/src/components/sightings/SightingCategoryPicker';
+import { uploadImage } from '@/src/lib/supabase/storageService';
 import { GlossyButton } from '@/src/components/ui';
 import { RUNABLE_THEME } from '@/src/constants/theme';
 import type { Coordinate, SightingCategory } from '@/src/types';
@@ -14,6 +17,7 @@ type SightingFormProps = {
     description: string;
     category: SightingCategory;
     coordinate: Coordinate;
+    photoUri?: string;
   }) => void;
   onCancel: () => void;
 };
@@ -22,13 +26,35 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<SightingCategory>('animal');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const isValid = title.trim().length > 0;
 
-  function handleSubmit() {
-    if (isValid) {
-      onSubmit({ title, description, category, coordinate });
+  async function pickImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setPhotoUri(result.assets[0].uri);
     }
+  }
+
+  async function handleSubmit() {
+    if (!isValid) return;
+
+    setIsUploading(true);
+    let finalPhotoUri = photoUri;
+
+    if (photoUri && !photoUri.startsWith('demo://')) {
+      const uploaded = await uploadImage(photoUri, 'sighting-images', `sighting_${Date.now()}.jpg`);
+      if (uploaded) finalPhotoUri = uploaded;
+    }
+
+    onSubmit({ title, description, category, coordinate, photoUri: finalPhotoUri ?? undefined });
+    setIsUploading(false);
   }
 
   return (
@@ -60,14 +86,20 @@ export function SightingForm({ coordinate, onSubmit, onCancel }: SightingFormPro
         numberOfLines={3}
       />
 
-      {/* Mock photo picker */}
-      <View style={styles.photoMock}>
-        <ThemedText style={styles.photoHint}>📷 Tap to attach photo (Demo)</ThemedText>
-      </View>
+      <TextLabel>Photo</TextLabel>
+      <Pressable style={styles.photoContainer} onPress={pickImage} disabled={isUploading}>
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.photoImage} contentFit="contain" />
+        ) : (
+          <View style={styles.photoPlaceholder}>
+            <ThemedText style={styles.photoHint}>📷 Tap to attach photo</ThemedText>
+          </View>
+        )}
+      </Pressable>
 
       <View style={styles.actionRow}>
-        <GlossyButton label="Cancel" onPress={onCancel} tone="secondary" />
-        <GlossyButton label="Add Sighting" onPress={handleSubmit} tone={isValid ? 'primary' : 'secondary'} />
+        <GlossyButton label="Cancel" onPress={onCancel} tone="secondary" disabled={isUploading} />
+        <GlossyButton label={isUploading ? 'Uploading...' : 'Add Sighting'} onPress={handleSubmit} tone={isValid ? 'primary' : 'secondary'} disabled={isUploading} />
       </View>
     </View>
   );
@@ -103,16 +135,27 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  photoMock: {
-    height: 80,
-    backgroundColor: '#E2E8F0',
+  photoContainer: {
+    height: 120,
+    width: '100%',
+    borderRadius: RUNABLE_THEME.radii.sm,
+    backgroundColor: '#F1F5F9',
+    overflow: 'hidden',
+    marginTop: RUNABLE_THEME.spacing.xs,
+  },
+  photoImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  photoPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#CBD5E1',
     borderStyle: 'dashed',
     borderRadius: RUNABLE_THEME.radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: RUNABLE_THEME.spacing.xs,
   },
   photoHint: {
     fontSize: 14,
